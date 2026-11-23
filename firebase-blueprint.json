@@ -1,0 +1,356 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated guard profile storing career patrol points, apprehensions, and unlocked uniforms.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Guard callsign or display name."
+        },
+        "points": {
+          "type": "integer",
+          "description": "Accumulated spendable patrol points."
+        },
+        "apprehensions": {
+          "type": "integer",
+          "description": "Total number of thieves apprehended."
+        },
+        "equippedUniformId": {
+          "type": "string",
+          "description": "Currently equipped uniform identifier."
+        },
+        "unlockedUniformIds": {
+          "type": "array",
+          "description": "Bounded list of unlocked uniform identifiers."
+        },
+        "voiceEnabled": {
+          "type": "boolean",
+          "description": "Whether GANDI Text-to-Speech radio voice is enabled."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of profile creation (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last profile update (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "points",
+        "apprehensions",
+        "equippedUniformId",
+        "unlockedUniformIds",
+        "voiceEnabled",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PatrolRoom": {
+      "title": "PatrolRoom",
+      "description": "Multiplayer residential estate patrol session synchronized across squad members.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "description": "Shareable room code matching document ID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Patrol shift title."
+        },
+        "hostUid": {
+          "type": "string",
+          "description": "UID of the room creator."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "LOCKDOWN", "ENDED"],
+          "description": "Current operational status of the estate."
+        },
+        "memberUids": {
+          "type": "array",
+          "description": "Bounded list of joined player UIDs (max 12)."
+        },
+        "northGateStatus": {
+          "type": "string",
+          "enum": ["OPEN", "ALERT", "LOCKED"],
+          "description": "Status of North Main Gate."
+        },
+        "southGateStatus": {
+          "type": "string",
+          "enum": ["OPEN", "ALERT", "LOCKED"],
+          "description": "Status of South Service Portal."
+        },
+        "scoreTotal": {
+          "type": "integer",
+          "description": "Total squad score in this room."
+        },
+        "apprehensionCount": {
+          "type": "integer",
+          "description": "Total thief apprehensions in this room."
+        },
+        "activeThiefSectorId": {
+          "type": "string",
+          "description": "Current sector ID of the active intruder."
+        },
+        "activeThiefStreet": {
+          "type": "string",
+          "description": "Current street name of the active intruder."
+        },
+        "activeThiefX": {
+          "type": "number",
+          "description": "Normalized X coordinate (0..1) on the estate map."
+        },
+        "activeThiefY": {
+          "type": "number",
+          "description": "Normalized Y coordinate (0..1) on the estate map."
+        },
+        "thiefSpotted": {
+          "type": "boolean",
+          "description": "Whether the intruder is currently spotted on radar/sightlines."
+        },
+        "gandiLastLine": {
+          "type": "string",
+          "description": "Latest live dispatch commentary from GANDI."
+        },
+        "gandiMood": {
+          "type": "string",
+          "enum": ["CHATTY", "ALERT", "PANICKED", "PROUD", "SUSPICIOUS"],
+          "description": "Current emotional state of GANDI."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of room creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last room state update."
+        }
+      },
+      "required": [
+        "roomCode",
+        "title",
+        "hostUid",
+        "status",
+        "memberUids",
+        "northGateStatus",
+        "southGateStatus",
+        "scoreTotal",
+        "apprehensionCount",
+        "activeThiefSectorId",
+        "activeThiefStreet",
+        "activeThiefX",
+        "activeThiefY",
+        "thiefSpotted",
+        "gandiLastLine",
+        "gandiMood",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RoomPlayer": {
+      "title": "RoomPlayer",
+      "description": "Live position, role, equipped uniform, and PTT voice status for a player inside a room.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Player UID matching document ID."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Player callsign."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["GUARD", "THIEF"],
+          "description": "Player tactical role."
+        },
+        "uniformId": {
+          "type": "string",
+          "description": "Equipped uniform ID."
+        },
+        "sectorId": {
+          "type": "string",
+          "description": "Current sector ID on the map."
+        },
+        "posX": {
+          "type": "number",
+          "description": "Normalized X coordinate (0..1)."
+        },
+        "posY": {
+          "type": "number",
+          "description": "Normalized Y coordinate (0..1)."
+        },
+        "pttActive": {
+          "type": "boolean",
+          "description": "Whether player is actively transmitting on PTT walkie-talkie."
+        },
+        "roomScore": {
+          "type": "integer",
+          "description": "Points earned by player in this room."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of join."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last position/status update."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "role",
+        "uniformId",
+        "sectorId",
+        "posX",
+        "posY",
+        "pttActive",
+        "roomScore",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TacticalPing": {
+      "title": "TacticalPing",
+      "description": "Location ping dropped on the estate map by a squad member.",
+      "type": "object",
+      "properties": {
+        "senderId": {
+          "type": "string",
+          "description": "UID of the player who dropped the ping."
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Callsign of the sender."
+        },
+        "pingType": {
+          "type": "string",
+          "enum": ["SUSPECT", "BACKUP", "BLOCK_GATE", "CLEAR"],
+          "description": "Type of tactical ping."
+        },
+        "sectorId": {
+          "type": "string",
+          "description": "Target sector ID."
+        },
+        "streetName": {
+          "type": "string",
+          "description": "Target street name."
+        },
+        "posX": {
+          "type": "number",
+          "description": "Normalized X coordinate (0..1)."
+        },
+        "posY": {
+          "type": "number",
+          "description": "Normalized Y coordinate (0..1)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of ping creation."
+        }
+      },
+      "required": [
+        "senderId",
+        "senderName",
+        "pingType",
+        "sectorId",
+        "streetName",
+        "posX",
+        "posY",
+        "createdAt"
+      ]
+    },
+    "CommsMessage": {
+      "title": "CommsMessage",
+      "description": "Real-time text chat, quick radio command, voice PTT log, or GANDI dispatch entry.",
+      "type": "object",
+      "properties": {
+        "senderId": {
+          "type": "string",
+          "description": "UID of the sender."
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Callsign or GANDI label."
+        },
+        "channel": {
+          "type": "string",
+          "enum": ["SQUAD", "RADIO", "GANDI", "VOICE_LOG"],
+          "description": "Communication channel."
+        },
+        "text": {
+          "type": "string",
+          "description": "Message payload."
+        },
+        "sectorTag": {
+          "type": "string",
+          "description": "Associated sector or street tag."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of message creation."
+        }
+      },
+      "required": [
+        "senderId",
+        "senderName",
+        "channel",
+        "text",
+        "sectorTag",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Authenticated guard profile, patrol points, and unlocked uniforms."
+    },
+    "/rooms/{roomId}": {
+      "schema": {
+        "$ref": "#/entities/PatrolRoom"
+      },
+      "description": "Multiplayer patrol rooms with gate states, thief telemetry, and GANDI dispatch state."
+    },
+    "/rooms/{roomId}/players/{playerUid}": {
+      "schema": {
+        "$ref": "#/entities/RoomPlayer"
+      },
+      "description": "Real-time positions, roles, uniforms, and PTT state of players in a room."
+    },
+    "/rooms/{roomId}/pings/{pingId}": {
+      "schema": {
+        "$ref": "#/entities/TacticalPing"
+      },
+      "description": "Real-time tactical location pings on the estate map."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": {
+        "$ref": "#/entities/CommsMessage"
+      },
+      "description": "Real-time squad text chat, radio commands, voice PTT logs, and GANDI broadcasts."
+    }
+  }
+}

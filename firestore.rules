@@ -1,0 +1,301 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidSectorId(s) {
+      return s in [
+        'GATE_NORTH', 'GATE_SOUTH',
+        'BLOCK_A', 'BLOCK_B', 'BLOCK_C', 'BLOCK_D',
+        'PARK_CENTRAL', 'PARK_WEST', 'CROSSWALK'
+      ];
+    }
+
+    function isValidGateStatus(s) {
+      return s in ['OPEN', 'ALERT', 'LOCKED'];
+    }
+
+    function isValidRoomStatus(s) {
+      return s in ['ACTIVE', 'LOCKDOWN', 'ENDED'];
+    }
+
+    function isValidGandiMood(m) {
+      return m in ['CHATTY', 'ALERT', 'PANICKED', 'PROUD', 'SUSPICIOUS'];
+    }
+
+    function isValidPlayerRole(r) {
+      return r in ['GUARD', 'THIEF'];
+    }
+
+    function isValidPingType(p) {
+      return p in ['SUSPECT', 'BACKUP', 'BLOCK_GATE', 'CLEAR'];
+    }
+
+    function isValidChannel(c) {
+      return c in ['SQUAD', 'RADIO', 'GANDI', 'VOICE_LOG'];
+    }
+
+    function isUnitCoord(v) {
+      return (v is float || v is int) && v >= 0.0 && v <= 1.0;
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
+             data.points is int && data.points >= 0 && data.points <= 10000000 &&
+             data.apprehensions is int && data.apprehensions >= 0 && data.apprehensions <= 1000000 &&
+             data.equippedUniformId is string && data.equippedUniformId.size() >= 1 && data.equippedUniformId.size() <= 40 &&
+             data.unlockedUniformIds is list && data.unlockedUniformIds.size() >= 1 && data.unlockedUniformIds.size() <= 20 &&
+             data.unlockedUniformIds[0] is string &&
+             data.voiceEnabled is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidRoom(data) {
+      return data.roomCode is string && data.roomCode.size() >= 3 && data.roomCode.size() <= 24 &&
+             data.title is string && data.title.size() >= 3 && data.title.size() <= 50 &&
+             data.hostUid is string && data.hostUid.size() >= 1 && data.hostUid.size() <= 128 &&
+             isValidRoomStatus(data.status) &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 12 &&
+             data.memberUids[0] is string &&
+             isValidGateStatus(data.northGateStatus) &&
+             isValidGateStatus(data.southGateStatus) &&
+             data.scoreTotal is int && data.scoreTotal >= 0 && data.scoreTotal <= 10000000 &&
+             data.apprehensionCount is int && data.apprehensionCount >= 0 && data.apprehensionCount <= 1000000 &&
+             isValidSectorId(data.activeThiefSectorId) &&
+             data.activeThiefStreet is string && data.activeThiefStreet.size() >= 1 && data.activeThiefStreet.size() <= 60 &&
+             isUnitCoord(data.activeThiefX) &&
+             isUnitCoord(data.activeThiefY) &&
+             data.thiefSpotted is bool &&
+             data.gandiLastLine is string && data.gandiLastLine.size() <= 300 &&
+             isValidGandiMood(data.gandiMood) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidRoomPlayer(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
+             isValidPlayerRole(data.role) &&
+             data.uniformId is string && data.uniformId.size() >= 1 && data.uniformId.size() <= 40 &&
+             isValidSectorId(data.sectorId) &&
+             isUnitCoord(data.posX) &&
+             isUnitCoord(data.posY) &&
+             data.pttActive is bool &&
+             data.roomScore is int && data.roomScore >= 0 && data.roomScore <= 10000000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPing(data) {
+      return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 40 &&
+             isValidPingType(data.pingType) &&
+             isValidSectorId(data.sectorId) &&
+             data.streetName is string && data.streetName.size() >= 1 && data.streetName.size() <= 60 &&
+             isUnitCoord(data.posX) &&
+             isUnitCoord(data.posY) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidMessage(data) {
+      return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 40 &&
+             isValidChannel(data.channel) &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 300 &&
+             data.sectorTag is string && data.sectorTag.size() <= 40 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isRoomMember(roomId) {
+      return isSignedIn() && isValidId(roomId) &&
+             exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+             request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids;
+    }
+
+    // 1. Guard Profiles & Uniform Armory (Strictly Owner-Only)
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'points', 'apprehensions',
+                         'equippedUniformId', 'unlockedUniformIds', 'voiceEnabled',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'points', 'apprehensions',
+                         'equippedUniformId', 'unlockedUniformIds', 'voiceEnabled',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'points', 'apprehensions',
+                         'equippedUniformId', 'unlockedUniformIds', 'voiceEnabled', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    // 2. Multiplayer Patrol Rooms
+    match /rooms/{roomId} {
+      // Allow fetching a specific room by exact Room Code for joining; restrict list queries strictly to member rooms
+      allow get: if isSignedIn() && isValidId(roomId);
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().hostUid == request.auth.uid &&
+                       request.auth.uid in incoming().memberUids &&
+                       incoming().status != 'ENDED' &&
+                       incoming().keys().hasAll([
+                         'roomCode', 'title', 'hostUid', 'status', 'memberUids',
+                         'northGateStatus', 'southGateStatus', 'scoreTotal', 'apprehensionCount',
+                         'activeThiefSectorId', 'activeThiefStreet', 'activeThiefX', 'activeThiefY',
+                         'thiefSpotted', 'gandiLastLine', 'gandiMood', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'roomCode', 'title', 'hostUid', 'status', 'memberUids',
+                         'northGateStatus', 'southGateStatus', 'scoreTotal', 'apprehensionCount',
+                         'activeThiefSectorId', 'activeThiefStreet', 'activeThiefX', 'activeThiefY',
+                         'thiefSpotted', 'gandiLastLine', 'gandiMood', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidRoom(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidRoom(incoming()) &&
+                       existing().status != 'ENDED' &&
+                       incoming().hostUid == existing().hostUid &&
+                       incoming().roomCode == existing().roomCode &&
+                       incoming().createdAt == existing().createdAt && (
+                         // Action: Join Room
+                         (!(request.auth.uid in existing().memberUids) &&
+                          request.auth.uid in incoming().memberUids &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])) ||
+                         // Action: Leave Room
+                         (request.auth.uid in existing().memberUids &&
+                          !(request.auth.uid in incoming().memberUids) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])) ||
+                         // Action: Squad Patrol / Gate / Thief / GANDI Dispatch Update
+                         (request.auth.uid in existing().memberUids &&
+                          incoming().status != 'ENDED' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'status', 'northGateStatus', 'southGateStatus',
+                            'scoreTotal', 'apprehensionCount',
+                            'activeThiefSectorId', 'activeThiefStreet', 'activeThiefX', 'activeThiefY',
+                            'thiefSpotted', 'gandiLastLine', 'gandiMood', 'updatedAt'
+                          ])) ||
+                         // Action: Host Ends Session
+                         (request.auth.uid == existing().hostUid &&
+                          incoming().status == 'ENDED' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(roomId) && request.auth.uid == existing().hostUid;
+
+      // 2a. Live Player Tokens inside Room
+      match /players/{playerUid} {
+        allow get, list: if isRoomMember(roomId);
+
+        allow create: if isRoomMember(roomId) &&
+                         isValidId(playerUid) &&
+                         request.auth.uid == playerUid &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll([
+                           'userId', 'displayName', 'role', 'uniformId', 'sectorId',
+                           'posX', 'posY', 'pttActive', 'roomScore', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'displayName', 'role', 'uniformId', 'sectorId',
+                           'posX', 'posY', 'pttActive', 'roomScore', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidRoomPlayer(incoming());
+
+        allow update: if isRoomMember(roomId) &&
+                         isValidId(playerUid) &&
+                         request.auth.uid == playerUid &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidRoomPlayer(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'displayName', 'role', 'uniformId', 'sectorId',
+                           'posX', 'posY', 'pttActive', 'roomScore', 'updatedAt'
+                         ]);
+
+        allow delete: if isRoomMember(roomId) && isValidId(playerUid) && request.auth.uid == playerUid;
+      }
+
+      // 2b. Live Tactical Location Pings
+      match /pings/{pingId} {
+        allow get, list: if isRoomMember(roomId);
+
+        allow create: if isRoomMember(roomId) &&
+                         isValidId(pingId) &&
+                         incoming().senderId == request.auth.uid &&
+                         incoming().keys().hasAll([
+                           'senderId', 'senderName', 'pingType', 'sectorId',
+                           'streetName', 'posX', 'posY', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'senderId', 'senderName', 'pingType', 'sectorId',
+                           'streetName', 'posX', 'posY', 'createdAt'
+                         ]) &&
+                         isValidPing(incoming());
+
+        allow update: if false;
+        allow delete: if isRoomMember(roomId) && isValidId(pingId) && existing().senderId == request.auth.uid;
+      }
+
+      // 2c. Real-Time Squad Comms, Radio Commands, Voice Logs & GANDI Dispatches
+      match /messages/{messageId} {
+        allow get, list: if isRoomMember(roomId);
+
+        allow create: if isRoomMember(roomId) &&
+                         isValidId(messageId) &&
+                         incoming().senderId == request.auth.uid &&
+                         incoming().keys().hasAll([
+                           'senderId', 'senderName', 'channel', 'text', 'sectorTag', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'senderId', 'senderName', 'channel', 'text', 'sectorTag', 'createdAt'
+                         ]) &&
+                         isValidMessage(incoming());
+
+        allow update: if false;
+        allow delete: if isRoomMember(roomId) && isValidId(messageId) && existing().senderId == request.auth.uid;
+      }
+    }
+  }
+}
