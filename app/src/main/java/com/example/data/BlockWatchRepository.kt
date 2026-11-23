@@ -182,7 +182,7 @@ class BlockWatchRepository(
                 val existing = snap.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
                 if (existing != null) return Result.success(existing)
             }
-            val safeName = (rawDisplayName?.trim()?.takeIf { it.isNotEmpty() } ?: "Guard_${uid.take(4)}").take(40)
+            val safeName = (rawDisplayName?.trim()?.takeIf { it.isNotEmpty() } ?: "Penjaga_${uid.take(4)}").take(40)
             val payload = mapOf(
                 "userId" to uid,
                 "displayName" to safeName,
@@ -219,8 +219,8 @@ class BlockWatchRepository(
         val path = "rooms/$roomCode"
         return try {
             val uid = requireUserId()
-            val cleanTitle = titleInput.trim().ifEmpty { "Emerald Crest Night Watch" }.take(50).let {
-                if (it.length < 3) "Estate Patrol" else it
+            val cleanTitle = titleInput.trim().ifEmpty { "Patroli Malam Emerald Crest" }.take(50).let {
+                if (it.length < 3) "Patroli Kompleks" else it
             }
             val startThiefSector = EstateWorld.byId("BLOCK_B")
             val welcome = GandiDispatcher.shiftWelcome(profile.displayName, roomCode)
@@ -281,7 +281,7 @@ class BlockWatchRepository(
     ): Result<String> {
         val code = rawCode.trim().uppercase().replace(Regex("[^A-Z0-9_\\-]"), "")
         if (code.length < 3 || code.length > 24) {
-            return Result.failure(IllegalArgumentException("Enter a valid 3–24 character room code."))
+            return Result.failure(IllegalArgumentException("Masukkan kode ruang 3–24 karakter yang valid."))
         }
         val path = "rooms/$code"
         return try {
@@ -289,16 +289,16 @@ class BlockWatchRepository(
             val roomRef = db.collection("rooms").document(code)
             val snap = roomRef.get().await()
             if (!snap.exists()) {
-                return Result.failure(IllegalStateException("Room $code not found."))
+                return Result.failure(IllegalStateException("Ruang patroli $code tidak ditemukan."))
             }
             val room = snap.toObject(PatrolRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-                ?: return Result.failure(IllegalStateException("Unable to load room $code."))
+                ?: return Result.failure(IllegalStateException("Gagal memuat ruang $code."))
             if (room.status == RoomStatus.ENDED.name) {
-                return Result.failure(IllegalStateException("Patrol shift $code has already ended."))
+                return Result.failure(IllegalStateException("Shift patroli $code sudah berakhir."))
             }
             if (uid !in room.memberUids) {
                 if (room.memberUids.size >= 12) {
-                    return Result.failure(IllegalStateException("Squad room $code is full (12/12)."))
+                    return Result.failure(IllegalStateException("Ruang regu $code sudah penuh (12/12)."))
                 }
                 roomRef.update(
                     mapOf(
@@ -427,7 +427,7 @@ class BlockWatchRepository(
                 GateStatus.ALERT -> GateStatus.LOCKED
                 GateStatus.LOCKED -> GateStatus.OPEN
             }
-            val gateName = if (isNorthGate) "North Main Gate" else "South Service Portal"
+            val gateName = if (isNorthGate) "Gerbang Utama Utara" else "Portal Servis Selatan"
             val gandi = GandiDispatcher.gateStatusChanged(gateName, nextStatus)
             val fieldKey = if (isNorthGate) "northGateStatus" else "southGateStatus"
             val nextRoomStatus = if (nextStatus == GateStatus.LOCKED) RoomStatus.LOCKDOWN.name else RoomStatus.ACTIVE.name
@@ -443,7 +443,7 @@ class BlockWatchRepository(
                     )
                 ).await()
 
-            postGandiDispatch(roomId, uid, gandi.line, if (isNorthGate) "N-GATE" else "S-GATE")
+            postGandiDispatch(roomId, uid, gandi.line, if (isNorthGate) "GERBANG-U" else "GERBANG-S")
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
@@ -533,7 +533,7 @@ class BlockWatchRepository(
                 .set(
                     mapOf(
                         "senderId" to uid,
-                        "senderName" to "GANDI // DISPATCH",
+                        "senderName" to "GANDI // OPERATOR",
                         "channel" to CommsChannel.GANDI.name,
                         "text" to line.take(300),
                         "sectorTag" to sectorTag.take(40),
@@ -673,7 +673,7 @@ class BlockWatchRepository(
                 return equipUniform(uniformId)
             }
             if (profile.points < item.price) {
-                return Result.failure(IllegalStateException("Need ${item.price - profile.points} more Patrol Points."))
+                return Result.failure(IllegalStateException("Butuh ${item.price - profile.points} Poin Patroli lagi."))
             }
             val updatedUnlocked = (profile.unlockedUniformIds + uniformId).distinct().take(20)
             db.collection("users").document(uid).update(

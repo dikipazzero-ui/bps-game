@@ -21,11 +21,11 @@ object GandiDispatcher {
     fun thiefSpotted(sector: EstateSector): GandiBroadcast {
         lineCounter++
         val templates = listOf(
-            "HOLD MY ESPRESSO! Somebody in suspicious sneakers just darted past ${sector.name} on ${sector.streetName}! Go, go, GO!",
-            "Motion sensors going bananas on ${sector.streetName}! A sneaky intruder is prowling right by ${sector.name}—don't blink!",
-            "Ooh, ooh! Security cam #4 just caught a hooded silhouette tiptoeing around ${sector.name} (${sector.streetName})! Corner 'em!",
-            "ATTENTION ALL UNITS! Mystery jogger—definitely NOT a resident—spotted near ${sector.name} heading along ${sector.streetName}!",
-            "Why do they ALWAYS pick my shift?! Intruder detected at ${sector.name}, ${sector.streetName}! Cut off their angles!"
+            "PEGANG KOPI SAYA! Ada orang bersepatu mencurigakan lari melewati ${sector.name} di ${sector.streetName}! Kejar, kejar, KEJAR!",
+            "Sensor gerak bunyi nyaring di ${sector.streetName}! Penyusup lagi mengendap di sekitar ${sector.name}—jangan sampai lolos!",
+            "Waduh, lihat CCTV #4! Ada bayangan bertudung mengintip di ${sector.name} (${sector.streetName})! Kepung dia!",
+            "PERHATIAN SEMUA UNIT! Ada pelari misterius—jelas BUKAN warga—terlihat di dekat ${sector.name} menuju ${sector.streetName}!",
+            "Kenapa sih maling selalu beraksi pas jadwal jaga saya?! Penyusup terdeteksi di ${sector.name}, ${sector.streetName}! Tutup jalannya!"
         )
         val line = templates[lineCounter % templates.size]
         val mood = if (sector.kind.name == "GATE") GandiMood.PANICKED else GandiMood.ALERT
@@ -36,15 +36,15 @@ object GandiDispatcher {
         lineCounter++
         return when (newStatus) {
             GateStatus.LOCKED -> GandiBroadcast(
-                line = "CLANG! $gateName is SEALED tight! Good luck vaulting 12 feet of wrought iron, sneaky-boots!",
+                line = "KLANG! $gateName sudah DIKUNCI rapat! Coba saja lompati pagar besi 3 meter itu kalau bisa, dasar penyusup!",
                 mood = GandiMood.PROUD
             )
             GateStatus.ALERT -> GandiBroadcast(
-                line = "WHOA! Perimeter tripwire tripped at $gateName! Somebody check the turnstiles before they slip out!",
+                line = "AWAS! Alarm kawat pengaman di $gateName berbunyi! Cepat cek pintu putar sebelum mereka kabur!",
                 mood = GandiMood.PANICKED
             )
             GateStatus.OPEN -> GandiBroadcast(
-                line = "Uh, team? $gateName is wide OPEN again! Please tell me that was a delivery van and not our intruder!",
+                line = "Eh, regu? $gateName TERBUKA lebar lagi! Tolong bilang itu cuma kurir paket, bukan si maling!",
                 mood = GandiMood.SUSPICIOUS
             )
         }
@@ -58,14 +58,14 @@ object GandiDispatcher {
     ): GandiBroadcast {
         lineCounter++
         val uniformNote = if (uniformId == "gandi_fanclub") {
-            " AND looking fabulous in my signature amber jacket!"
+            " sambil tampil kece dengan jaket amber favorit saya!"
         } else {
             ""
         }
         val lines = listOf(
-            "BOOM! $guardName bagged the intruder on ${sector.streetName} right by ${sector.name}! +$pointsEarned pts$uniformNote!",
-            "YESSS! Textbook intercept at ${sector.name} ($guardName +$pointsEarned pts)! That's going on the HOA newsletter$uniformNote!",
-            "GOTCHA! $guardName slammed the door at ${sector.name} on ${sector.streetName}! +$pointsEarned Patrol Points—treat yourself in the Armory!"
+            "MANTAP! $guardName membekuk penyusup di ${sector.streetName} tepat dekat ${sector.name}! +$pointsEarned poin$uniformNote",
+            "SYUKURLAH! Penangkapan sempurna di ${sector.name} ($guardName +$pointsEarned poin)! Masuk buletin warga nih$uniformNote!",
+            "KENA DEH! $guardName menutup jalur di ${sector.name} (${sector.streetName})! +$pointsEarned Poin Patroli—langsung belanja di Gudang!"
         )
         return GandiBroadcast(
             line = lines[lineCounter % lines.size],
@@ -76,26 +76,26 @@ object GandiDispatcher {
     fun pingReact(senderName: String, pingType: PingType, sector: EstateSector): GandiBroadcast {
         return when (pingType) {
             PingType.SUSPECT -> GandiBroadcast(
-                line = "Copy $senderName! Pinning suspect flare at ${sector.name} on ${sector.streetName}! Squad, converge!",
+                line = "Diterima $senderName! Menandai lokasi penyusup di ${sector.name} (${sector.streetName})! Regu, merapat!",
                 mood = GandiMood.ALERT
             )
             PingType.BACKUP -> GandiBroadcast(
-                line = "$senderName is calling for backup at ${sector.name}! Somebody hustle down ${sector.streetName} right now!",
+                line = "$senderName minta bantuan darurat di ${sector.name}! Siapa pun yang dekat ${sector.streetName}, lari ke sana sekarang!",
                 mood = GandiMood.PANICKED
             )
             PingType.BLOCK_GATE -> GandiBroadcast(
-                line = "Smart call, $senderName! Everybody pinch the exits near ${sector.name} (${sector.streetName})!",
+                line = "Langkah cerdas, $senderName! Semua tutup pintu keluar di sekitar ${sector.name} (${sector.streetName})!",
                 mood = GandiMood.CHATTY
             )
             PingType.CLEAR -> GandiBroadcast(
-                line = "Nice sweep by $senderName—${sector.name} looks spotless. Stay sharp though, it's TOO quiet on ${sector.streetName}...",
+                line = "Sisir mantap dari $senderName—${sector.name} terlihat bersih. Tetap siaga ya, ${sector.streetName} agak mencurigakan sepinya...",
                 mood = GandiMood.SUSPICIOUS
             )
         }
     }
 
     fun shiftWelcome(guardName: String, roomCode: String): GandiBroadcast = GandiBroadcast(
-        line = "Welcome to Shift $roomCode, $guardName! Tap any street or block to patrol, drop pings, or hit PTT radio. Let's keep Emerald Crest spotless!",
+        line = "Selamat bertugas di Shift $roomCode, $guardName! Ketuk jalan atau blok di peta untuk patroli, pasang ping, atau tekan PTT. Jaga Emerald Crest tetap aman!",
         mood = GandiMood.CHATTY
     )
 }

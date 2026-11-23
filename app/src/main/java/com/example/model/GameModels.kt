@@ -7,8 +7,10 @@ import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.IgnoreExtraProperties
 import com.google.firebase.firestore.ServerTimestamp
 
-enum class GateStatus {
-    OPEN, ALERT, LOCKED;
+enum class GateStatus(val labelId: String) {
+    OPEN("TERBUKA"),
+    ALERT("SIAGA"),
+    LOCKED("TERKUNCI");
 
     companion object {
         fun safeValueOf(raw: String): GateStatus =
@@ -25,8 +27,12 @@ enum class RoomStatus {
     }
 }
 
-enum class GandiMood {
-    CHATTY, ALERT, PANICKED, PROUD, SUSPICIOUS;
+enum class GandiMood(val labelId: String) {
+    CHATTY("CEREWET"),
+    ALERT("WASPADA"),
+    PANICKED("PANIK"),
+    PROUD("BANGGA"),
+    SUSPICIOUS("CURIGA");
 
     companion object {
         fun safeValueOf(raw: String): GandiMood =
@@ -34,8 +40,9 @@ enum class GandiMood {
     }
 }
 
-enum class PlayerRole {
-    GUARD, THIEF;
+enum class PlayerRole(val labelId: String) {
+    GUARD("PENJAGA"),
+    THIEF("PENCURI");
 
     companion object {
         fun safeValueOf(raw: String): PlayerRole =
@@ -44,10 +51,10 @@ enum class PlayerRole {
 }
 
 enum class PingType(val label: String) {
-    SUSPECT("Suspect Spotted"),
-    BACKUP("Need Backup"),
-    BLOCK_GATE("Seal Exit"),
-    CLEAR("Sector Clear");
+    SUSPECT("Ada Penyusup"),
+    BACKUP("Butuh Bantuan"),
+    BLOCK_GATE("Tutup Gerbang"),
+    CLEAR("Sektor Aman");
 
     companion object {
         fun safeValueOf(raw: String): PingType =
@@ -69,7 +76,7 @@ enum class CommsChannel {
 data class UserProfile(
     @DocumentId val id: String = "",
     val userId: String = "",
-    val displayName: String = "Guard Cadet",
+    val displayName: String = "Kadet Penjaga",
     val points: Long = 100L,
     val apprehensions: Long = 0L,
     val equippedUniformId: String = "rookie_cadet",
@@ -84,7 +91,7 @@ data class UserProfile(
 data class PatrolRoom(
     @DocumentId val id: String = "",
     val roomCode: String = "",
-    val title: String = "Emerald Crest Night Watch",
+    val title: String = "Patroli Malam Emerald Crest",
     val hostUid: String = "",
     val status: String = RoomStatus.ACTIVE.name,
     val memberUids: List<String> = emptyList(),
@@ -93,11 +100,11 @@ data class PatrolRoom(
     val scoreTotal: Long = 0L,
     val apprehensionCount: Long = 0L,
     val activeThiefSectorId: String = "BLOCK_B",
-    val activeThiefStreet: String = "Oakridge Boulevard",
+    val activeThiefStreet: String = "Jl. Oakridge Boulevard",
     val activeThiefX: Double = 0.78,
     val activeThiefY: Double = 0.24,
     val thiefSpotted: Boolean = true,
-    val gandiLastLine: String = "GANDI online! Keep your flashlights charged and eyes on Oakridge Blvd!",
+    val gandiLastLine: String = "GANDI siap bertugas! Pastikan senter menyala dan pantau terus Jl. Oakridge!",
     val gandiMood: String = GandiMood.CHATTY.name,
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
@@ -108,7 +115,7 @@ data class PatrolRoom(
 data class RoomPlayer(
     @DocumentId val id: String = "",
     val userId: String = "",
-    val displayName: String = "Patrol Unit",
+    val displayName: String = "Unit Patroli",
     val role: String = PlayerRole.GUARD.name,
     val uniformId: String = "rookie_cadet",
     val sectorId: String = "GATE_NORTH",
@@ -128,7 +135,7 @@ data class TacticalPing(
     val senderName: String = "Unit",
     val pingType: String = PingType.SUSPECT.name,
     val sectorId: String = "CROSSWALK",
-    val streetName: String = "Central Crosswalk",
+    val streetName: String = "Bundaran Utama",
     val posX: Double = 0.50,
     val posY: Double = 0.50,
     @ServerTimestamp val createdAt: Timestamp? = null
@@ -139,7 +146,7 @@ data class TacticalPing(
 data class CommsMessage(
     @DocumentId val id: String = "",
     val senderId: String = "",
-    val senderName: String = "Dispatch",
+    val senderName: String = "Operator",
     val channel: String = CommsChannel.SQUAD.name,
     val text: String = "",
     val sectorTag: String = "",
@@ -164,101 +171,101 @@ object EstateWorld {
     val sectors: List<EstateSector> = listOf(
         EstateSector(
             id = "GATE_NORTH",
-            shortCode = "N-GATE",
-            name = "North Main Gate",
-            streetName = "Oakridge Boulevard",
+            shortCode = "GERBANG-U",
+            name = "Gerbang Utama Utara",
+            streetName = "Jl. Oakridge Boulevard",
             kind = SectorKind.GATE,
             normX = 0.50f,
             normY = 0.09f,
-            description = "Primary vehicle checkpoint & visitor barrier.",
+            description = "Pos pemeriksaan kendaraan utama dan palang pintu tamu.",
             neighbors = listOf("BLOCK_A", "BLOCK_B", "CROSSWALK")
         ),
         EstateSector(
             id = "BLOCK_A",
-            shortCode = "BLK-A",
-            name = "Block A: Amberwood Towers",
-            streetName = "Lantern Lane",
+            shortCode = "BLOK-A",
+            name = "Blok A: Menara Amberwood",
+            streetName = "Lorong Lentera",
             kind = SectorKind.BLOCK,
             normX = 0.21f,
             normY = 0.24f,
-            description = "Twin 18-story residential towers with rooftop access.",
+            description = "Menara hunian kembar 18 lantai dengan akses atap.",
             neighbors = listOf("GATE_NORTH", "PARK_WEST", "CROSSWALK")
         ),
         EstateSector(
             id = "BLOCK_B",
-            shortCode = "BLK-B",
-            name = "Block B: Cedar Court Villas",
-            streetName = "Oakridge Boulevard",
+            shortCode = "BLOK-B",
+            name = "Blok B: Vila Taman Cedar",
+            streetName = "Jl. Oakridge Boulevard",
             kind = SectorKind.BLOCK,
             normX = 0.79f,
             normY = 0.24f,
-            description = "Gated garden villas with dense perimeter hedges.",
+            description = "Kompleks vila taman berpagar dengan semak perimeter rapat.",
             neighbors = listOf("GATE_NORTH", "CROSSWALK", "BLOCK_D")
         ),
         EstateSector(
             id = "PARK_WEST",
-            shortCode = "W-PARK",
-            name = "Moonlight Playground",
-            streetName = "Lantern Lane",
+            shortCode = "TAMAN-B",
+            name = "Taman Bermain Rembulan",
+            streetName = "Lorong Lentera",
             kind = SectorKind.PARK,
             normX = 0.14f,
             normY = 0.50f,
-            description = "Open west pocket park with low lighting.",
+            description = "Ruang terbuka hijau di sisi barat dengan penerangan minim.",
             neighbors = listOf("BLOCK_A", "PARK_CENTRAL", "BLOCK_C")
         ),
         EstateSector(
             id = "CROSSWALK",
-            shortCode = "X-WALK",
-            name = "Central Crosswalk",
-            streetName = "Central Crosswalk",
+            shortCode = "SIMPANG",
+            name = "Bundaran Penyeberangan Pusat",
+            streetName = "Jl. Simpang Tengah",
             kind = SectorKind.INTERSECTION,
             normX = 0.50f,
             normY = 0.37f,
-            description = "Main 4-way roundabout connecting Blocks A–D.",
+            description = "Persimpangan 4 arah utama penghubung Blok A hingga D.",
             neighbors = listOf("GATE_NORTH", "BLOCK_A", "BLOCK_B", "PARK_CENTRAL")
         ),
         EstateSector(
             id = "PARK_CENTRAL",
-            shortCode = "PARK",
-            name = "Willow Central Park",
-            streetName = "Crescent Drive",
+            shortCode = "TAMAN",
+            name = "Taman Pusat Willow",
+            streetName = "Jl. Bulan Sabit",
             kind = SectorKind.PARK,
             normX = 0.50f,
             normY = 0.58f,
-            description = "Expansive central plaza, fountain & jogging loop.",
+            description = "Alun-alun taman luas, air mancur, dan lintasan lari.",
             neighbors = listOf("CROSSWALK", "PARK_WEST", "BLOCK_C", "BLOCK_D", "GATE_SOUTH")
         ),
         EstateSector(
             id = "BLOCK_C",
-            shortCode = "BLK-C",
-            name = "Block C: Horizon Suites",
-            streetName = "Lantern Lane",
+            shortCode = "BLOK-C",
+            name = "Blok C: Apartemen Horizon",
+            streetName = "Lorong Lentera",
             kind = SectorKind.BLOCK,
             normX = 0.21f,
             normY = 0.76f,
-            description = "Mid-rise courtyard apartments near delivery alley.",
+            description = "Apartemen halaman tengah di dekat gang pengiriman barang.",
             neighbors = listOf("PARK_WEST", "PARK_CENTRAL", "GATE_SOUTH")
         ),
         EstateSector(
             id = "BLOCK_D",
-            shortCode = "BLK-D",
-            name = "Block D: Maple Ridge Condos",
-            streetName = "Crescent Drive",
+            shortCode = "BLOK-D",
+            name = "Blok D: Kondominium Maple",
+            streetName = "Jl. Bulan Sabit",
             kind = SectorKind.BLOCK,
             normX = 0.79f,
             normY = 0.76f,
-            description = "Terraced condos bordering the eastern wall.",
+            description = "Kondominium bertingkat yang berbatasan langsung dengan tembok timur.",
             neighbors = listOf("BLOCK_B", "PARK_CENTRAL", "GATE_SOUTH")
         ),
         EstateSector(
             id = "GATE_SOUTH",
-            shortCode = "S-GATE",
-            name = "South Service Portal",
-            streetName = "Sundown Way",
+            shortCode = "GERBANG-S",
+            name = "Portal Servis Selatan",
+            streetName = "Jl. Senja Raya",
             kind = SectorKind.GATE,
             normX = 0.50f,
             normY = 0.91f,
-            description = "Pedestrian turnstile & service delivery portal.",
+            description = "Pintu putar pejalan kaki dan portal akses pengiriman logistik.",
             neighbors = listOf("PARK_CENTRAL", "BLOCK_C", "BLOCK_D")
         )
     )
@@ -295,63 +302,63 @@ object UniformCatalog {
     val items: List<UniformItem> = listOf(
         UniformItem(
             id = "rookie_cadet",
-            name = "Cadet Blue Patrol",
-            rankTitle = "Cadet",
+            name = "Seragam Kadet Biru",
+            rankTitle = "Kadet",
             price = 0L,
             primaryColor = Color(0xFF38BDF8),
             trimColor = Color(0xFFF8FAFC),
-            bonusFlair = "Standard Issue",
-            description = "Crisp estate navy shirt with reflective safety stripes and rookie badge."
+            bonusFlair = "Perlengkapan Standar",
+            description = "Kemeja biru kompleks dengan garis reflektif malam dan lencana kadet."
         ),
         UniformItem(
             id = "neon_warden",
-            name = "Cyber-Neon Warden",
-            rankTitle = "Warden",
+            name = "Penjaga Siber-Neon",
+            rankTitle = "Sipir",
             price = 250L,
             primaryColor = Color(0xFF06B6D4),
             trimColor = Color(0xFF22D3EE),
-            bonusFlair = "Cyan Radar Trail",
-            description = "Illuminated night-shift tactical vest with glowing cyan scanner visor."
+            bonusFlair = "Jejak Radar Sian",
+            description = "Rompi taktis patroli malam lengkap dengan visor pemindai menyala."
         ),
         UniformItem(
             id = "crimson_marshal",
-            name = "Crimson Gate Marshal",
-            rankTitle = "Marshal",
+            name = "Marsekal Gerbang Merah",
+            rankTitle = "Marsekal",
             price = 500L,
             primaryColor = Color(0xFFEF4444),
             trimColor = Color(0xFFFBBF24),
-            bonusFlair = "Gate Lockdown Flair",
-            description = "High-visibility crimson command coat favored by gate checkpoint veterans."
+            bonusFlair = "Efek Kunci Gerbang",
+            description = "Jaket komando merah menyala andalan petugas pos penjagaan gerbang."
         ),
         UniformItem(
             id = "night_owl",
-            name = "Night-Owl Recon",
-            rankTitle = "Scout",
+            name = "Pengintai Burung Hantu",
+            rankTitle = "Pengintai",
             price = 800L,
             primaryColor = Color(0xFF10B981),
             trimColor = Color(0xFF6EE7B7),
-            bonusFlair = "Emerald Optics",
-            description = "Stealth charcoal parka with emerald NVG goggles for Willow Park sweeps."
+            bonusFlair = "Optik Zamrud",
+            description = "Parka gelap anti-radar dengan kacamata malam untuk menyisir taman."
         ),
         UniformItem(
             id = "gandi_fanclub",
-            name = "GANDI's Golden Favorite",
-            rankTitle = "Chief Dispatcher",
+            name = "Jaket Emas Favorit GANDI",
+            rankTitle = "Kepala Operator",
             price = 1200L,
             primaryColor = Color(0xFFF59E0B),
             trimColor = Color(0xFFFEF08A),
-            bonusFlair = "Special GANDI Praise",
-            description = "Bright amber jacket with a megaphone pin. GANDI cannot stop complimenting it."
+            bonusFlair = "Pujian Khusus GANDI",
+            description = "Jaket amber cerah berpin megafon. GANDI selalu heboh memuji seragam ini!"
         ),
         UniformItem(
             id = "royal_sentinel",
-            name = "Estate Sovereign Sentinel",
-            rankTitle = "Grand Commander",
+            name = "Panglima Agung Kompleks",
+            rankTitle = "Komandan Utama",
             price = 2000L,
             primaryColor = Color(0xFFA855F7),
             trimColor = Color(0xFFFDE047),
-            bonusFlair = "Prestige Aura",
-            description = "Ceremonial obsidian-and-gold armor reserved for top Emerald Crest legends."
+            bonusFlair = "Aura Prestise",
+            description = "Zirah seremonial obsidian-emas khusus penjaga legendaris Emerald Crest."
         )
     )
 
@@ -368,11 +375,11 @@ data class QuickRadioCommand(
 
 object QuickRadioPresets {
     val commands = listOf(
-        QuickRadioCommand("corner_gate", "Corner North Gate!", "Closing in! Corner suspect at North Main Gate!", PingType.BLOCK_GATE),
-        QuickRadioCommand("need_backup", "Need Backup!", "Requesting immediate backup at %SECTOR% (%STREET%)!", PingType.BACKUP),
-        QuickRadioCommand("visual", "Visual on Thief!", "Visual contact! Suspect spotted near %SECTOR% on %STREET%!", PingType.SUSPECT),
-        QuickRadioCommand("cut_off", "Cut Off Sundown!", "Cutting off escape routes along Sundown Way!", PingType.BLOCK_GATE),
-        QuickRadioCommand("seal_portal", "Seal South Portal!", "Locking down South Service Portal—watch the alley!", PingType.BLOCK_GATE),
-        QuickRadioCommand("all_clear", "Sector Clear", "%SECTOR% sweep complete—perimeter clear.", PingType.CLEAR)
+        QuickRadioCommand("corner_gate", "Kepung Gerbang U!", "Merapat! Kepung tersangka di Gerbang Utama Utara!", PingType.BLOCK_GATE),
+        QuickRadioCommand("need_backup", "Butuh Bantuan!", "Minta bantuan segera di %SECTOR% (%STREET%)!", PingType.BACKUP),
+        QuickRadioCommand("visual", "Maling Terlihat!", "Kontak visual! Pencuri terlihat di dekat %SECTOR% (%STREET%)!", PingType.SUSPECT),
+        QuickRadioCommand("cut_off", "Tutup Jl. Senja!", "Memotong jalur kabur di sepanjang Jl. Senja Raya!", PingType.BLOCK_GATE),
+        QuickRadioCommand("seal_portal", "Kunci Portal Selatan!", "Mengunci Portal Servis Selatan—awasi gang belakang!", PingType.BLOCK_GATE),
+        QuickRadioCommand("all_clear", "Sektor Aman", "Penyisiran %SECTOR% selesai—perimeter aman terkendali.", PingType.CLEAR)
     )
 }

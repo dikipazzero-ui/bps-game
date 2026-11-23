@@ -32,11 +32,11 @@ class GameLogicTest {
 
     @Test
     fun `gandi dispatcher reacts dramatically to gate status`() {
-        val locked = GandiDispatcher.gateStatusChanged("North Main Gate", GateStatus.LOCKED)
+        val locked = GandiDispatcher.gateStatusChanged("Gerbang Utama Utara", GateStatus.LOCKED)
         assertEquals(GandiMood.PROUD, locked.mood)
-        assertTrue(locked.line.contains("North Main Gate"))
+        assertTrue(locked.line.contains("Gerbang Utama Utara"))
 
-        val alert = GandiDispatcher.gateStatusChanged("South Service Portal", GateStatus.ALERT)
+        val alert = GandiDispatcher.gateStatusChanged("Portal Servis Selatan", GateStatus.ALERT)
         assertEquals(GandiMood.PANICKED, alert.mood)
     }
 
@@ -51,7 +51,7 @@ class GameLogicTest {
         )
         assertEquals(GandiMood.PROUD, broadcast.mood)
         assertTrue(broadcast.line.contains("125"))
-        assertTrue(broadcast.line.contains("amber jacket"))
+        assertTrue(broadcast.line.contains("jaket amber"))
     }
 
     @Test

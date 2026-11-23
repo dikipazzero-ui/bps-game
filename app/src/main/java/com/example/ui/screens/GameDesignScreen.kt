@@ -61,19 +61,19 @@ fun GameDesignScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "BLOCKWATCH // GAME DESIGN DOC",
+                            text = "BPSGIM // DOKUMEN DESAIN GAME",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Emerald Crest Security Operations",
+                            text = "Operasi Keamanan Emerald Crest",
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Multiplayer residential patrol & tactical coordination built on Jetpack Compose + Cloud Firestore.",
+                            text = "Patroli perumahan multiplayer & koordinasi taktis berbasis Jetpack Compose + Cloud Firestore.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -84,14 +84,14 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.SportsEsports,
-                    title = "1. Core Gameplay Loop",
+                    title = "1. Alur Permainan Utama",
                     bullets = listOf(
-                        "Deploy into an Estate Patrol Room (solo or squad via 6-char Room Code).",
-                        "Patrol Blocks A–D, streets, and parks; monitor GANDI's live radar & street alerts.",
-                        "Coordinate with squadmates via Map Pings, Quick Radio, PTT Voice, and Text Chat.",
-                        "Seal North Main Gate or South Service Portal to cut off suspect escape routes.",
-                        "Intercept and APPREHEND intruders to earn Patrol Points (+100 base, +50 Gate Seal bonus, +25 Prestige Uniform bonus).",
-                        "Spend accumulated points in the Armory Shop to unlock & equip 6 guard uniforms."
+                        "Masuk ke Ruang Patroli Kompleks (sendiri atau regu via Kode Ruang 6 karakter).",
+                        "Patroli Blok A–D, jalanan kompleks, dan taman; pantau radar & laporan jalanan dari GANDI.",
+                        "Koordinasi dengan rekan regu via Ping Peta, Radio Cepat, Suara PTT, dan Obrolan Teks.",
+                        "Kunci Gerbang Utama Utara atau Portal Servis Selatan untuk memotong rute kabur penyusup.",
+                        "Kejar dan TANGKAP penyusup untuk meraih Poin Patroli (+100 dasar, +50 bonus Gerbang Terkunci, +25 bonus Seragam Prestise).",
+                        "Belanjakan poin di Gudang Seragam untuk membuka & memakai 6 seragam penjaga."
                     )
                 )
             }
@@ -99,7 +99,7 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.Map,
-                    title = "2. Residential Estate Map (9 Sectors)",
+                    title = "2. Peta Kawasan Perumahan (9 Sektor)",
                     bullets = EstateWorld.sectors.map { s ->
                         "${s.shortCode} • ${s.name} (${s.streetName}): ${s.description}"
                     }
@@ -109,11 +109,11 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.Campaign,
-                    title = "3. GANDI Dispatch Personality",
+                    title = "3. Karakter Pemandu GANDI",
                     bullets = listOf(
-                        "Persona: Hyper-talkative, caffeinated, expressive residential watch dispatcher.",
-                        "Moods: CHATTY, ALERT, PANICKED, PROUD, SUSPICIOUS — dynamically reflected on the HUD.",
-                        "Functions: Names exact street & block of intruder sightings, reacts to gate locks/breaches, celebrates takedowns, and echoes squad pings."
+                        "Kepribadian: Cerewet, penuh semangat, ekspresif, dan proaktif memantau CCTV kompleks.",
+                        "Suasana Hati: CEREWET, WASPADA, PANIK, BANGGA, CURIGA — tampil dinamis di layar patroli.",
+                        "Fungsi: Melaporkan nama jalan & blok lokasi penyusup, status gerbang, memuji penangkapan, dan merespons ping regu."
                     )
                 )
             }
@@ -121,12 +121,12 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.Forum,
-                    title = "4. Multiplayer Communication Suite",
+                    title = "4. Sistem Komunikasi Multiplayer",
                     bullets = listOf(
-                        "Push-to-Talk (PTT) Radio: Captures live mic amplitude (AudioRecord) and broadcasts an active cyan transmitting ring on your map token.",
-                        "Quick Radio Commands: 1-tap tactical macros (Corner North Gate, Need Backup, Visual on Thief, Seal South Portal) with auto-sector tagging.",
-                        "Location Pings: Tap map in Ping Mode to drop pulsing SUSPECT, BACKUP, BLOCK_GATE, or CLEAR beacons.",
-                        "Real-Time Squad Chat: Instant Firestore subcollection feed synchronized with GANDI dispatches."
+                        "Radio Push-to-Talk (PTT): Menangkap amplitudo mikrofon (AudioRecord) dan menyalakan cincin sinyal sian di peta.",
+                        "Perintah Radio Cepat: Tombol 1-ketuk (Kepung Gerbang U, Butuh Bantuan, Maling Terlihat, Kunci Portal Selatan) dengan tag sektor otomatis.",
+                        "Ping Lokasi: Ketuk peta dalam Mode Ping untuk memasang suar PENYUSUP, BUTUH BANTUAN, TUTUP GERBANG, atau AMAN.",
+                        "Obrolan Regu Real-Time: Aliran pesan Firestore sinkron langsung dengan laporan GANDI."
                     )
                 )
             }
@@ -134,11 +134,11 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.Checkroom,
-                    title = "5. Scoring & Armory Progression",
+                    title = "5. Skor & Koleksi Seragam",
                     bullets = listOf(
-                        "Cadet Blue Patrol (0 pts) -> Cyber-Neon Warden (250 pts) -> Crimson Gate Marshal (500 pts).",
-                        "Night-Owl Recon (800 pts) -> GANDI's Golden Favorite (1,200 pts) -> Estate Sovereign Sentinel (2,000 pts).",
-                        "Equipped uniforms change your live multiplayer map token color, trim halo, and rank callsign."
+                        "Seragam Kadet Biru (0 poin) -> Penjaga Siber-Neon (250 poin) -> Marsekal Gerbang Merah (500 poin).",
+                        "Pengintai Burung Hantu (800 poin) -> Jaket Emas Favorit GANDI (1.200 poin) -> Panglima Agung Kompleks (2.000 poin).",
+                        "Seragam yang dipakai langsung mengubah warna ikon, bingkai aura, dan pangkat Anda di peta multiplayer."
                     )
                 )
             }
@@ -146,12 +146,12 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.Architecture,
-                    title = "6. Technical Architecture",
+                    title = "6. Arsitektur Teknis",
                     bullets = listOf(
-                        "Auth: Google Sign-In via Jetpack Credential Manager (GetSignInWithGoogleOption).",
-                        "Backend: Cloud Firestore Enterprise (users/{uid}, rooms/{roomId}, plus players/, pings/, messages/ subcollections).",
-                        "Security: Zero-trust schema validation, member-gated subcollection reads, immutable chat/ping logs, and action-scoped room updates.",
-                        "Client: MVVM with StateFlow, Jetpack Compose Canvas tactical renderer, and Android TextToSpeech for GANDI voice."
+                        "Autentikasi: Google Sign-In via Jetpack Credential Manager (GetSignInWithGoogleOption).",
+                        "Backend: Cloud Firestore Enterprise (koleksi users/{uid}, rooms/{roomId}, serta subkoleksi players/, pings/, messages/).",
+                        "Keamanan: Validasi skema zero-trust, akses subkoleksi khusus anggota regu, log obrolan/ping permanen.",
+                        "Klien: MVVM dengan StateFlow, peta taktis Jetpack Compose Canvas, dan suara TextToSpeech GANDI."
                     )
                 )
             }

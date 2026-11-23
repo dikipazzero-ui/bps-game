@@ -1,4 +1,4 @@
-name: Build BlockWatch APK
+name: Build BPSGIM APK
 
 on:
   push:
@@ -54,15 +54,19 @@ jobs:
             tr -d '[:space:]' < debug.keystore.base64 | base64 -d > debug.keystore || rm -f debug.keystore
           fi
           if [ ! -s debug.keystore ]; then
+            echo "::warning::DEBUG_KEYSTORE_BASE64 secret not set. Generating fallback debug.keystore (Google Sign-In requires registering this SHA-1 in Firebase or setting DEBUG_KEYSTORE_BASE64)."
             keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
+          keytool -list -v -keystore debug.keystore -alias androiddebugkey -storepass android -keypass android | grep -E "SHA1:|SHA256:" || true
           [ -f .env ] || [ -f .env.example ] || touch .env
 
       - name: Build Debug APK
-        run: gradle :app:assembleDebug --no-daemon --console=plain -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g" -Dorg.gradle.workers.max=2
+        run: |
+          gradle :app:assembleDebug --no-daemon --console=plain -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g" -Dorg.gradle.workers.max=2
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/BPSGIM.apk
 
-      - name: Upload BlockWatch APK
+      - name: Upload BPSGIM APK
         uses: actions/upload-artifact@v4
         with:
-          name: BlockWatch-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: BPSGIM-apk
+          path: app/build/outputs/apk/debug/BPSGIM.apk

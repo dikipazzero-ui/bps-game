@@ -198,7 +198,7 @@ fun EstateMapCanvas(
                     style = Stroke(width = 2.5f)
                 )
                 val labelResult = textMeasurer.measure(
-                    text = "SUSPECT",
+                    text = "PENYUSUP",
                     style = TextStyle(
                         fontFamily = JetBrainsMonoFontFamily,
                         fontWeight = FontWeight.Bold,
@@ -252,7 +252,7 @@ fun EstateMapCanvas(
                     style = Stroke(width = 2.8f)
                 )
 
-                val tag = if (isMe) "YOU" else player.displayName.take(8)
+                val tag = if (isMe) "ANDA" else player.displayName.take(8)
                 val tagLayout = textMeasurer.measure(
                     text = tag,
                     style = TextStyle(
@@ -303,12 +303,12 @@ private fun DrawScope.drawStreets(w: Float, h: Float, textMeasurer: TextMeasurer
         fontSize = 8.sp,
         color = Color(0xFF94A3B8)
     )
-    drawText(textMeasurer.measure("OAKRIDGE BLVD", streetStyle), topLeft = Offset(w * 0.58f, h * 0.152f))
-    drawText(textMeasurer.measure("SUNDOWN WAY", streetStyle), topLeft = Offset(w * 0.58f, h * 0.832f))
+    drawText(textMeasurer.measure("JL. OAKRIDGE", streetStyle), topLeft = Offset(w * 0.58f, h * 0.152f))
+    drawText(textMeasurer.measure("JL. SENJA RAYA", streetStyle), topLeft = Offset(w * 0.58f, h * 0.832f))
 }
 
 private fun DrawScope.drawParks(w: Float, h: Float, textMeasurer: TextMeasurer) {
-    // Willow Central Park
+    // Taman Pusat Willow
     drawRoundRect(
         color = Color(0xFF064E3B).copy(alpha = 0.72f),
         topLeft = Offset(w * 0.34f, h * 0.45f),
@@ -322,10 +322,10 @@ private fun DrawScope.drawParks(w: Float, h: Float, textMeasurer: TextMeasurer) 
         cornerRadius = CornerRadius(24f, 24f),
         style = Stroke(width = 2f)
     )
-    // Park fountain
+    // Air mancur taman
     drawCircle(Color(0xFF0EA5E9).copy(alpha = 0.5f), radius = 16f, center = Offset(w * 0.50f, h * 0.575f))
 
-    // Moonlight Playground (West)
+    // Taman Bermain Rembulan (Barat)
     drawRoundRect(
         color = Color(0xFF065F46).copy(alpha = 0.55f),
         topLeft = Offset(w * 0.15f, h * 0.43f),
@@ -334,7 +334,7 @@ private fun DrawScope.drawParks(w: Float, h: Float, textMeasurer: TextMeasurer) 
     )
 
     val parkLabel = textMeasurer.measure(
-        "WILLOW PARK",
+        "TAMAN WILLOW",
         TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF6EE7B7))
     )
     drawText(parkLabel, topLeft = Offset(w * 0.50f - parkLabel.size.width / 2f, h * 0.635f))
@@ -342,10 +342,10 @@ private fun DrawScope.drawParks(w: Float, h: Float, textMeasurer: TextMeasurer) 
 
 private fun DrawScope.drawBlocks(w: Float, h: Float, textMeasurer: TextMeasurer) {
     val blockDefs = listOf(
-        Triple("BLOCK A", Offset(w * 0.16f, h * 0.21f), Color(0xFF1E3A5F)),
-        Triple("BLOCK B", Offset(w * 0.65f, h * 0.21f), Color(0xFF1E3A5F)),
-        Triple("BLOCK C", Offset(w * 0.16f, h * 0.67f), Color(0xFF1E3A5F)),
-        Triple("BLOCK D", Offset(w * 0.65f, h * 0.67f), Color(0xFF1E3A5F))
+        Triple("BLOK A", Offset(w * 0.16f, h * 0.21f), Color(0xFF1E3A5F)),
+        Triple("BLOK B", Offset(w * 0.65f, h * 0.21f), Color(0xFF1E3A5F)),
+        Triple("BLOK C", Offset(w * 0.16f, h * 0.67f), Color(0xFF1E3A5F)),
+        Triple("BLOK D", Offset(w * 0.65f, h * 0.67f), Color(0xFF1E3A5F))
     )
     val blockSize = Size(w * 0.19f, h * 0.115f)
     val style = TextStyle(
@@ -393,13 +393,13 @@ private fun DrawScope.drawGates(
         GateStatus.LOCKED -> Color(0xFFEF4444)
     }
 
-    val gateSize = Size(w * 0.24f, h * 0.055f)
-    val nTopLeft = Offset(w * 0.38f, h * 0.05f)
-    val sTopLeft = Offset(w * 0.38f, h * 0.895f)
+    val gateSize = Size(w * 0.26f, h * 0.055f)
+    val nTopLeft = Offset(w * 0.37f, h * 0.05f)
+    val sTopLeft = Offset(w * 0.37f, h * 0.895f)
 
     listOf(
-        Triple("N-GATE: ${northStatus.name}", nTopLeft, gateColor(northStatus)),
-        Triple("S-PORTAL: ${southStatus.name}", sTopLeft, gateColor(southStatus))
+        Triple("U: ${northStatus.labelId}", nTopLeft, gateColor(northStatus)),
+        Triple("S: ${southStatus.labelId}", sTopLeft, gateColor(southStatus))
     ).forEach { (label, topLeft, color) ->
         drawRoundRect(
             color = color.copy(alpha = 0.24f),

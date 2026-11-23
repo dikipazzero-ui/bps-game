@@ -88,7 +88,7 @@ fun ShopScreen(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.img_shop_banner),
-                        contentDescription = "Guard Uniform Armory Showcase",
+                        contentDescription = "Etalase Gudang Seragam Penjaga",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -111,12 +111,12 @@ fun ShopScreen(
                     ) {
                         Column {
                             Text(
-                                text = "GUARD ARMORY",
+                                text = "GUDANG SERAGAM",
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = Color.White
                             )
                             Text(
-                                text = "Unlock & equip patrol uniforms",
+                                text = "Buka & pakai seragam patroli",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color(0xFFCBD5E1)
                             )
@@ -137,7 +137,7 @@ fun ShopScreen(
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 Text(
-                                    text = "$points PTS",
+                                    text = "$points POIN",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onPrimary,
                                     fontWeight = FontWeight.Bold
@@ -220,12 +220,12 @@ fun ShopScreen(
                                     ) {
                                         Icon(
                                             Icons.Filled.CheckCircle,
-                                            contentDescription = "Equipped",
+                                            contentDescription = "Dipakai",
                                             tint = MaterialTheme.colorScheme.tertiary,
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(Modifier.width(4.dp))
-                                        Text("ACTIVE", style = MaterialTheme.typography.labelMedium)
+                                        Text("AKTIF", style = MaterialTheme.typography.labelMedium)
                                     }
                                 }
                             }
@@ -238,7 +238,7 @@ fun ShopScreen(
                                         .height(48.dp)
                                         .testTag("equip_${uniform.id}")
                                 ) {
-                                    Text("EQUIP")
+                                    Text("PAKAI")
                                 }
                             }
                             else -> {

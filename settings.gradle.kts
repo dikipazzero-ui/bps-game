@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "BlockWatch"
+rootProject.name = "BPSGIM"
 
 include(":app")

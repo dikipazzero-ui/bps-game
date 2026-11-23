@@ -108,7 +108,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
             ) {
                 Image(
                     painter = painterResource(id = com.example.R.drawable.img_estate_banner),
-                    contentDescription = "Emerald Crest residential estate patrol view",
+                    contentDescription = "Pemandangan patroli perumahan Emerald Crest",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -131,7 +131,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = "MULTIPLAYER PATROL",
+                            text = "PATROLI MULTIPLAYER",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -151,7 +151,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                 }
             }
 
-            // GANDI Briefing Card
+            // Kartu Pengarahan GANDI
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -166,7 +166,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                 ) {
                     Image(
                         painter = painterResource(id = com.example.R.drawable.img_gandi_avatar),
-                        contentDescription = "GANDI Dispatch Officer Avatar",
+                        contentDescription = "Avatar Operator GANDI",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(64.dp)
@@ -182,7 +182,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "\"Clock in already, rookie! Someone left North Main Gate propped open and there's sneaker tracks by Block B!\"",
+                            text = "\"Ayo cepat absen, komandan baru! Ada yang lupa menutup Gerbang Utama Utara dan barusan ada jejak sepatu di dekat Blok B!\"",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -190,27 +190,27 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                 }
             }
 
-            // Core Feature Pills
+            // Ringkasan Fitur Utama
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 AuthFeaturePill(
                     icon = Icons.Filled.LocationSearching,
-                    title = "Live Map",
-                    subtitle = "9 Sectors",
+                    title = "Peta Live",
+                    subtitle = "9 Sektor",
                     modifier = Modifier.weight(1f)
                 )
                 AuthFeaturePill(
                     icon = Icons.Filled.RecordVoiceOver,
-                    title = "Squad PTT",
-                    subtitle = "Radio & Pings",
+                    title = "Radio PTT",
+                    subtitle = "Suara & Ping",
                     modifier = Modifier.weight(1f)
                 )
                 AuthFeaturePill(
                     icon = Icons.Filled.Shield,
-                    title = "Armory",
-                    subtitle = "6 Uniforms",
+                    title = "Gudang",
+                    subtitle = "6 Seragam",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -230,7 +230,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                 }
             }
 
-            // Mandatory Google Sign-In Interactive Button
+            // Tombol Login Google Interaktif
             Button(
                 onClick = {
                     errorMessage = null
@@ -247,8 +247,9 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                             errorMessage = msg
                         },
                         scope = scope,
-                        onAuthCancelled = {
+                        onAuthCancelled = { cancelReason ->
                             isLoading = false
+                            errorMessage = cancelReason
                         }
                     )
                 },

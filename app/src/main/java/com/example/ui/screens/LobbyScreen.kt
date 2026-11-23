@@ -82,7 +82,7 @@ fun LobbyScreen(
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var showJoinDialog by remember { mutableStateOf(false) }
-    var shiftTitle by remember { mutableStateOf("Emerald Crest Night Watch") }
+    var shiftTitle by remember { mutableStateOf("Patroli Malam Emerald Crest") }
     var joinCode by remember { mutableStateOf("") }
 
     Box(
@@ -139,7 +139,7 @@ fun LobbyScreen(
                                 ) {
                                     Image(
                                         painter = painterResource(id = R.drawable.img_estate_banner),
-                                        contentDescription = "Emerald Crest Estate Overview",
+                                        contentDescription = "Peta Perumahan Emerald Crest",
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
@@ -212,19 +212,19 @@ fun LobbyScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
                                             imageVector = Icons.Filled.Stars,
-                                            contentDescription = "Patrol Points",
+                                            contentDescription = "Poin Patroli",
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = "${profile.points} PTS",
+                                            text = "${profile.points} POIN",
                                             style = MaterialTheme.typography.titleMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                         Spacer(Modifier.width(14.dp))
                                         Text(
-                                            text = "${profile.apprehensions} Arrests",
+                                            text = "${profile.apprehensions} Tangkapan",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -248,7 +248,7 @@ fun LobbyScreen(
                                             )
                                             Spacer(Modifier.width(4.dp))
                                             Text(
-                                                text = "Armory",
+                                                text = "Gudang",
                                                 style = MaterialTheme.typography.labelLarge,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                                             )
@@ -285,13 +285,13 @@ fun LobbyScreen(
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "GANDI // READY FOR DEPLOYMENT",
+                                text = "GANDI // SIAP BERTUGAS",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.secondary
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "\"Start a Patrol Shift to sweep Blocks A–D, or punch in a friend's Room Code to join their squad!\"",
+                                text = "\"Mulai Patroli untuk menyisir Blok A–D, atau masukkan Kode Ruang temanmu untuk gabung satu regu!\"",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -358,7 +358,7 @@ fun LobbyScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Active Patrol Shifts",
+                        text = "Shift Patroli Aktif",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground
                     )
@@ -368,7 +368,7 @@ fun LobbyScreen(
                     ) {
                         Icon(Icons.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Read GDD")
+                        Text("Baca Panduan")
                     }
                 }
             }
@@ -425,12 +425,12 @@ fun LobbyScreen(
                                     )
                                     Spacer(Modifier.height(8.dp))
                                     Text(
-                                        text = "No active shifts yet",
+                                        text = "Belum ada shift patroli aktif",
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        text = "Tap Start Patrol Shift above to launch a live estate room and share your code with friends.",
+                                        text = "Ketuk Mulai Patroli di atas untuk membuka ruang regu dan bagikan kodenya ke teman.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -470,7 +470,7 @@ fun LobbyScreen(
                                             }
                                             Spacer(Modifier.width(8.dp))
                                             Text(
-                                                text = "${room.memberUids.size} Guard(s)",
+                                                text = "${room.memberUids.size} Penjaga",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -482,7 +482,7 @@ fun LobbyScreen(
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = "Score: ${room.scoreTotal} • Arrests: ${room.apprehensionCount}",
+                                            text = "Skor: ${room.scoreTotal} • Tangkapan: ${room.apprehensionCount}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -495,7 +495,7 @@ fun LobbyScreen(
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Filled.PlayArrow,
-                                                contentDescription = "Enter shift ${room.roomCode}",
+                                                contentDescription = "Masuk shift ${room.roomCode}",
                                                 tint = MaterialTheme.colorScheme.onPrimary
                                             )
                                         }
@@ -512,14 +512,14 @@ fun LobbyScreen(
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("Launch Patrol Shift") },
+            title = { Text("Buka Shift Patroli Baru") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Name your multiplayer shift. Friends can join via the generated Room Code.")
+                    Text("Beri nama shift patroli Anda. Teman bisa bergabung memakai Kode Ruang yang dibuat.")
                     OutlinedTextField(
                         value = shiftTitle,
                         onValueChange = { if (it.length <= 45) shiftTitle = it },
-                        label = { Text("Shift Name") },
+                        label = { Text("Nama Shift") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -535,12 +535,12 @@ fun LobbyScreen(
                     },
                     modifier = Modifier.testTag("confirm_create_room")
                 ) {
-                    Text("Deploy")
+                    Text("Berangkat")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false }) {
-                    Text("Cancel")
+                    Text("Batal")
                 }
             }
         )
@@ -549,14 +549,14 @@ fun LobbyScreen(
     if (showJoinDialog) {
         AlertDialog(
             onDismissRequest = { showJoinDialog = false },
-            title = { Text("Join Squad Room") },
+            title = { Text("Gabung Ruang Regu") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Enter the 6-character Room Code from your squad leader (e.g. EC4F9K).")
+                    Text("Masukkan 6 karakter Kode Ruang dari ketua regu Anda (contoh: EC4F9K).")
                     OutlinedTextField(
                         value = joinCode,
                         onValueChange = { if (it.length <= 12) joinCode = it.uppercase() },
-                        label = { Text("Room Code") },
+                        label = { Text("Kode Ruang") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -573,12 +573,12 @@ fun LobbyScreen(
                     enabled = joinCode.trim().length >= 3,
                     modifier = Modifier.testTag("confirm_join_room")
                 ) {
-                    Text("Join Squad")
+                    Text("Gabung Regu")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showJoinDialog = false }) {
-                    Text("Cancel")
+                    Text("Batal")
                 }
             }
         )

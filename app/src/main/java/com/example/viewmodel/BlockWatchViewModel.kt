@@ -87,7 +87,7 @@ class BlockWatchViewModel(
             if (profile != null) UiState.Success(profile) else UiState.Loading
         }
         .catch { error ->
-            emit(UiState.Error(unwrapFirestoreError(error, "Failed to load guard profile")))
+            emit(UiState.Error(unwrapFirestoreError(error, "Gagal memuat profil penjaga")))
         }
         .stateIn(
             scope = viewModelScope,
@@ -98,7 +98,7 @@ class BlockWatchViewModel(
     val myRoomsState: StateFlow<UiState<List<PatrolRoom>>> = repository.observeMyRooms(currentUserId)
         .map<List<PatrolRoom>, UiState<List<PatrolRoom>>> { UiState.Success(it) }
         .catch { error ->
-            emit(UiState.Error(unwrapFirestoreError(error, "Failed to load patrol rooms")))
+            emit(UiState.Error(unwrapFirestoreError(error, "Gagal memuat ruang patroli")))
         }
         .stateIn(
             scope = viewModelScope,
@@ -121,7 +121,7 @@ class BlockWatchViewModel(
                 ) { room, players, pings, messages ->
                     UiState.Success(RoomBundle(room, players, pings, messages)) as UiState<RoomBundle>
                 }.catch { error ->
-                    emit(UiState.Error(unwrapFirestoreError(error, "Failed to sync patrol room")))
+                    emit(UiState.Error(unwrapFirestoreError(error, "Gagal menyinkronkan ruang patroli")))
                 }
             }
         }
@@ -134,7 +134,7 @@ class BlockWatchViewModel(
     init {
         viewModelScope.launch {
             repository.ensureUserProfile(displayName)
-                .onFailure { _statusBanner.value = it.localizedMessage ?: "Profile init failed" }
+                .onFailure { _statusBanner.value = it.localizedMessage ?: "Gagal menyiapkan profil" }
         }
 
         // Speak new GANDI dispatches when voice is enabled and inside a room
@@ -185,7 +185,7 @@ class BlockWatchViewModel(
                     openRoom(roomId, isHost = true)
                 }
                 .onFailure {
-                    _statusBanner.value = it.localizedMessage ?: "Could not create patrol room"
+                    _statusBanner.value = it.localizedMessage ?: "Gagal membuat ruang patroli"
                 }
             _isBusy.value = false
         }
@@ -200,7 +200,7 @@ class BlockWatchViewModel(
                     openRoom(roomId, isHost = false)
                 }
                 .onFailure {
-                    _statusBanner.value = it.localizedMessage ?: "Could not join squad room"
+                    _statusBanner.value = it.localizedMessage ?: "Gagal bergabung ke regu"
                 }
             _isBusy.value = false
         }
@@ -215,7 +215,7 @@ class BlockWatchViewModel(
                     openRoom(roomId, isHost = (room.hostUid == currentUserId))
                 }
                 .onFailure {
-                    _statusBanner.value = it.localizedMessage ?: "Unable to re-enter shift"
+                    _statusBanner.value = it.localizedMessage ?: "Gagal masuk kembali ke shift"
                 }
             _isBusy.value = false
         }
@@ -302,7 +302,7 @@ class BlockWatchViewModel(
             )
             if (dist > 0.24f && me.sectorId != room.activeThiefSectorId) {
                 val thiefSector = EstateWorld.byId(room.activeThiefSectorId)
-                _statusBanner.value = "Move closer to ${thiefSector.name} (${thiefSector.streetName}) to apprehend!"
+                _statusBanner.value = "Dekati ${thiefSector.name} (${thiefSector.streetName}) untuk menangkap!"
                 return
             }
         }
@@ -310,10 +310,10 @@ class BlockWatchViewModel(
         viewModelScope.launch {
             repository.apprehendThief(roomId, room, profile)
                 .onSuccess { pts ->
-                    _statusBanner.value = "Suspect apprehended! +$pts Patrol Points"
+                    _statusBanner.value = "Penyusup tertangkap! +$pts Poin Patroli"
                 }
                 .onFailure {
-                    _statusBanner.value = it.localizedMessage ?: "Apprehension failed"
+                    _statusBanner.value = it.localizedMessage ?: "Gagal menangkap penyusup"
                 }
         }
     }
@@ -375,7 +375,7 @@ class BlockWatchViewModel(
                     roomId = roomId,
                     senderName = profile.displayName,
                     channel = CommsChannel.VOICE_LOG,
-                    text = "Voice radio transmission from ${sector.name} (${sector.streetName})",
+                    text = "Transmisi radio suara dari ${sector.name} (${sector.streetName})",
                     sectorTag = sector.shortCode
                 )
             }
@@ -398,10 +398,10 @@ class BlockWatchViewModel(
             _isBusy.value = true
             repository.purchaseAndEquipUniform(uniformId, profile)
                 .onSuccess {
-                    _statusBanner.value = "Uniform equipped for patrol!"
+                    _statusBanner.value = "Seragam dipakai untuk patroli!"
                 }
                 .onFailure {
-                    _statusBanner.value = it.localizedMessage ?: "Purchase failed"
+                    _statusBanner.value = it.localizedMessage ?: "Pembelian gagal"
                 }
             _isBusy.value = false
         }

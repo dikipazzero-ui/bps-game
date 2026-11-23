@@ -29,9 +29,13 @@ class GandiVoiceSpeaker(context: Context) {
     init {
         tts = TextToSpeech(context.applicationContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.US
-                tts?.setPitch(1.12f)
-                tts?.setSpeechRate(1.08f)
+                val idLocale = Locale.forLanguageTag("id-ID")
+                val res = tts?.setLanguage(idLocale)
+                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.language = Locale.getDefault()
+                }
+                tts?.setPitch(1.08f)
+                tts?.setSpeechRate(1.05f)
                 ready = true
             }
         }

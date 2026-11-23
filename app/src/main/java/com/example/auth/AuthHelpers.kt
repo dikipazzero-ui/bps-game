@@ -2,12 +2,15 @@ package com.example.auth
 
 import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.util.Log
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.example.R
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
@@ -26,6 +29,12 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 fun FirebaseAuth.authStateFlow(): Flow<FirebaseUser?> = callbackFlow {
     val listener = FirebaseAuth.AuthStateListener { auth ->
@@ -63,7 +72,8 @@ fun attemptAutoSignIn(
 
     scope.launch {
         try {
-            val cred = credentialManager.getCredential(context, request).credential
+            val credContext = context.findActivity() ?: context
+            val cred = credentialManager.getCredential(credContext, request).credential
             if (cred is CustomCredential && cred.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val token = GoogleIdTokenCredential.createFrom(cred.data).idToken
                 Firebase.auth.signInWithCredential(GoogleAuthProvider.getCredential(token, null)).await()
@@ -83,12 +93,12 @@ fun onGoogleSignInClicked(
     onAuthSuccess: () -> Unit,
     onAuthError: (String) -> Unit,
     scope: CoroutineScope,
-    onAuthCancelled: () -> Unit = {}
+    onAuthCancelled: (String) -> Unit = {}
 ) {
     val clientId = try {
         context.getString(R.string.default_web_client_id)
     } catch (_: Exception) {
-        onAuthError("Google Sign-In configuration missing: default_web_client_id not found")
+        onAuthError("Konfigurasi Login Google belum tersedia (default_web_client_id tidak ditemukan).")
         return
     }
     val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
@@ -98,22 +108,31 @@ fun onGoogleSignInClicked(
 
     scope.launch {
         try {
-            val activity = context as? Activity
-                ?: throw IllegalStateException("Sign-in requires an Activity context")
+            val activity = context.findActivity()
+                ?: throw IllegalStateException("Login membutuhkan konteks Activity yang aktif.")
             val cred = credentialManager.getCredential(activity, request).credential
             if (cred is CustomCredential && cred.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val token = GoogleIdTokenCredential.createFrom(cred.data).idToken
                 Firebase.auth.signInWithCredential(GoogleAuthProvider.getCredential(token, null)).await()
                 onAuthSuccess()
             } else {
-                onAuthError("Unexpected credential type returned by Google Sign-In")
+                onAuthError("Tipe kredensial Google Sign-In tidak sesuai.")
             }
         } catch (e: GetCredentialCancellationException) {
             Log.w("Auth", "Google Sign-In flow cancelled or dismissed: ${e.message}", e)
-            onAuthCancelled()
+            onAuthCancelled(
+                "Login Google dibatalkan atau sertifikat APK (SHA-1) tidak cocok dengan Firebase. " +
+                    "Pastikan akun Google aktif di HP dan gunakan APK dari AI Studio atau keystore yang terdaftar."
+            )
+        } catch (e: NoCredentialException) {
+            Log.w("Auth", "No Google credentials available: ${e.message}", e)
+            onAuthError("Akun Google belum ditemukan di perangkat ini. Silakan login akun Gmail di Setelan Android terlebih dahulu.")
+        } catch (e: GetCredentialException) {
+            Log.e("Auth", "Google Credential error (${e.type})", e)
+            onAuthError("Gagal memuat akun Google (${e.type}): ${e.localizedMessage ?: "Coba lagi."}")
         } catch (e: Exception) {
             Log.e("Auth", "Google Sign-In failed", e)
-            onAuthError(e.localizedMessage ?: "Sign in failed")
+            onAuthError(e.localizedMessage ?: "Gagal masuk dengan Google.")
         }
     }
 }

@@ -162,7 +162,7 @@ fun PatrolHudScreen(
                 ) {
                     Text(roomBundleState.message, color = MaterialTheme.colorScheme.error)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = onExitRoom) { Text("Back to Dispatch") }
+                    Button(onClick = onExitRoom) { Text("Kembali ke Markas") }
                 }
             }
             is UiState.Success -> {
@@ -366,7 +366,7 @@ private fun PatrolTopBar(
                 onClick = onExitRoom,
                 modifier = Modifier.testTag("exit_room_button")
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Dispatch")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali ke Markas")
             }
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -383,13 +383,13 @@ private fun PatrolTopBar(
                     }
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "$playerCount Online",
+                        text = "$playerCount Aktif",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Text(
-                    text = "Squad Score: ${room.scoreTotal} • Arrests: ${room.apprehensionCount}",
+                    text = "Skor Regu: ${room.scoreTotal} • Tangkapan: ${room.apprehensionCount}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -410,7 +410,7 @@ private fun PatrolTopBar(
                 ) {
                     Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(myRole.name, style = MaterialTheme.typography.labelMedium)
+                    Text(myRole.labelId, style = MaterialTheme.typography.labelMedium)
                 }
             }
             IconButton(
@@ -419,7 +419,7 @@ private fun PatrolTopBar(
             ) {
                 Icon(
                     imageVector = if (voiceEnabled) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff,
-                    contentDescription = if (voiceEnabled) "Mute GANDI Voice" else "Enable GANDI Voice",
+                    contentDescription = if (voiceEnabled) "Bisukan Suara GANDI" else "Aktifkan Suara GANDI",
                     tint = if (voiceEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -457,7 +457,7 @@ private fun GandiDispatchTicker(room: PatrolRoom) {
         ) {
             Image(
                 painter = painterResource(id = R.drawable.img_gandi_avatar),
-                contentDescription = "GANDI Dispatch Officer",
+                contentDescription = "Operator GANDI",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(44.dp)
@@ -472,7 +472,7 @@ private fun GandiDispatchTicker(room: PatrolRoom) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "GANDI // ${mood.name}",
+                        text = "GANDI // ${mood.labelId}",
                         style = MaterialTheme.typography.labelMedium,
                         color = accentColor
                     )
@@ -514,7 +514,7 @@ private fun MapModeControls(
         FilterChip(
             selected = !isPingMode,
             onClick = onSelectMoveMode,
-            label = { Text("Patrol Move", style = MaterialTheme.typography.labelSmall) },
+            label = { Text("Gerak Patroli", style = MaterialTheme.typography.labelSmall) },
             leadingIcon = { Icon(Icons.Filled.MyLocation, null, Modifier.size(15.dp)) },
             modifier = Modifier.testTag("mode_move_chip")
         )
@@ -588,7 +588,7 @@ private fun ActionDeck(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    if (northLocked) "N-LOCK" else "N-GATE",
+                    if (northLocked) "U-KUNCI" else "GERBANG-U",
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1
                 )
@@ -615,7 +615,7 @@ private fun ActionDeck(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    if (southLocked) "S-LOCK" else "S-GATE",
+                    if (southLocked) "S-KUNCI" else "GERBANG-S",
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1
                 )
@@ -628,11 +628,11 @@ private fun ActionDeck(
                     .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                     .testTag("radar_scan_button")
             ) {
-                Icon(Icons.Filled.Radar, contentDescription = "Scan Estate Radar", tint = MaterialTheme.colorScheme.secondary)
+                Icon(Icons.Filled.Radar, contentDescription = "Pindai Radar Kompleks", tint = MaterialTheme.colorScheme.secondary)
             }
         }
 
-        // Push-to-Talk Walkie-Talkie Row
+        // Baris Walkie-Talkie Push-to-Talk
         Surface(
             onClick = onPttToggle,
             color = if (pttActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
@@ -656,7 +656,7 @@ private fun ActionDeck(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = if (pttActive) Icons.Filled.Mic else Icons.Filled.MicOff,
-                        contentDescription = "Push to Talk Voice Radio",
+                        contentDescription = "Radio Suara Push-to-Talk",
                         tint = if (pttActive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
@@ -809,7 +809,7 @@ private fun CommsPanel(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send squad message",
+                        contentDescription = "Kirim pesan regu",
                         tint = if (chatDraft.isNotBlank()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

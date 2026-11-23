@@ -1,18 +1,18 @@
 <resources>
-    <string name="app_name">BlockWatch</string>
-    <string name="app_subtitle">Emerald Crest Estate Security</string>
-    <string name="sign_in_google">Sign in with Google</string>
-    <string name="sign_out">Sign Out</string>
-    <string name="tab_lobby">Dispatch</string>
-    <string name="tab_shop">Armory</string>
-    <string name="tab_gdd">Field Guide</string>
-    <string name="btn_start_shift">Start Patrol Shift</string>
-    <string name="btn_join_squad">Join by Code</string>
-    <string name="btn_apprehend">APPREHEND</string>
-    <string name="btn_lock_gate">SEAL GATE</string>
-    <string name="btn_open_gate">OPEN GATE</string>
-    <string name="btn_ptt_hold">TAP TO TALK (PTT)</string>
-    <string name="btn_ptt_live">TRANSMITTING LIVE...</string>
-    <string name="gandi_name">GANDI // DISPATCH</string>
-    <string name="comms_placeholder">Message squad radio...</string>
+    <string name="app_name">BPSGIM</string>
+    <string name="app_subtitle">Keamanan Kompleks Emerald Crest</string>
+    <string name="sign_in_google">Masuk dengan Google</string>
+    <string name="sign_out">Keluar</string>
+    <string name="tab_lobby">Markas</string>
+    <string name="tab_shop">Gudang</string>
+    <string name="tab_gdd">Panduan</string>
+    <string name="btn_start_shift">Mulai Patroli</string>
+    <string name="btn_join_squad">Gabung Kode</string>
+    <string name="btn_apprehend">TANGKAP</string>
+    <string name="btn_lock_gate">KUNCI GERBANG</string>
+    <string name="btn_open_gate">BUKA GERBANG</string>
+    <string name="btn_ptt_hold">TEKAN UNTUK BICARA (PTT)</string>
+    <string name="btn_ptt_live">SIARAN LANGSUNG...</string>
+    <string name="gandi_name">GANDI // OPERATOR</string>
+    <string name="comms_placeholder">Kirim pesan radio regu...</string>
 </resources>
