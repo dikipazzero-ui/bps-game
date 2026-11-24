@@ -190,7 +190,24 @@ data class BuildingFootprint(
     val roofColor: Color,
     val wallColor: Color,
     val accentColor: Color,
-    val isMosque: Boolean = false
+    val isMosque: Boolean = false,
+    val isPrison: Boolean = false
+)
+
+data class ThiefEntity(
+    val id: String,
+    val label: String,
+    val x: Float,
+    val y: Float,
+    val hp: Float,
+    val maxHp: Float,
+    val walkPhase: Float = 0f,
+    val wanderAngle: Float = 0f,
+    val lastHitMs: Long = 0L,
+    val lastShotMs: Long = 0L,
+    val lastDustMs: Long = 0L,
+    val goingToPrison: Boolean = false,
+    val hoodieColor: Color = Color(0xFF7F1D1D)
 )
 
 enum class VehicleType(val label: String, val speedMultiplier: Float, val armorBonus: Float) {
@@ -287,7 +304,21 @@ object EstateWorld {
         BuildingFootprint("CLUSTER_FLAMBOYAN_S", "RUMAH FLAMBOYAN", 0.75f, 0.89f, 0.86f, 0.94f, 13f, Color(0xFF38282B), Color(0xFF23181A), Color(0xFFFB7185))
     )
 
-    val allBuildings: List<BuildingFootprint> = buildings + subBuildings
+    val prisonBuilding = BuildingFootprint(
+        id = "PENJARA_SELARAS",
+        label = "PENJARA SELARAS",
+        minX = 0.385f, minY = 0.055f, maxX = 0.445f, maxY = 0.105f,
+        height3D = 12f,
+        roofColor = Color(0xFF475569),
+        wallColor = Color(0xFF64748B),
+        accentColor = Color(0xFFF59E0B),
+        isPrison = true
+    )
+
+    const val prisonDoorX = 0.462f
+    const val prisonDoorY = 0.080f
+
+    val allBuildings: List<BuildingFootprint> = buildings + subBuildings + prisonBuilding
 
     val defaultVehicles: List<WorldVehicle> = listOf(
         WorldVehicle("car_masjid", VehicleType.CAR, 0.475f, 0.635f, 90f, Color(0xFF0F172A), Color(0xFF38BDF8)),
@@ -296,6 +327,43 @@ object EstateWorld {
         WorldVehicle("car_flamboyan", VehicleType.CAR, 0.66f, 0.705f, 270f, Color(0xFFE2E8F0), Color(0xFFEF4444)),
         WorldVehicle("moto_akasia", VehicleType.MOTORCYCLE, 0.665f, 0.295f, 90f, Color(0xFF10B981), Color(0xFFFDE047))
     )
+
+    fun spawnThiefWave(wave: Int, playerX: Float, playerY: Float): List<ThiefEntity> {
+        val hp = 320f + (wave - 1) * 75f
+        val hideSpots = listOf(
+            0.18f to 0.38f,
+            0.82f to 0.38f,
+            0.18f to 0.63f,
+            0.82f to 0.63f,
+            0.34f to 0.88f,
+            0.66f to 0.88f,
+            0.08f to 0.20f,
+            0.92f to 0.20f,
+            0.29f to 0.12f,
+            0.71f to 0.12f
+        ).filter { (sx, sy) -> isWalkable(sx, sy) }
+            .sortedByDescending { (sx, sy) -> distance(playerX, playerY, sx, sy) }
+
+        val palette = listOf(
+            Color(0xFF7F1D1D),
+            Color(0xFF3F3F46),
+            Color(0xFF7C2D12),
+            Color(0xFF4C1D95),
+            Color(0xFF1E293B)
+        )
+        return hideSpots.take(5).mapIndexed { idx, (sx, sy) ->
+            ThiefEntity(
+                id = "thief_${wave}_${idx + 1}",
+                label = "MALING #${idx + 1}",
+                x = sx,
+                y = sy,
+                hp = hp,
+                maxHp = hp,
+                wanderAngle = idx * 1.25f,
+                hoodieColor = palette[idx % palette.size]
+            )
+        }
+    }
 
     val sectors: List<EstateSector> = listOf(
         EstateSector(

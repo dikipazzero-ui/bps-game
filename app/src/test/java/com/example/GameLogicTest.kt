@@ -117,4 +117,18 @@ class GameLogicTest {
         // Open street along Jl. Krisan-Cempaka (y=0.295) should be clear
         assertTrue(EstateWorld.hasLineOfSight(0.20f, 0.295f, 0.45f, 0.295f))
     }
+
+    @Test
+    fun `multi thief wave spawns 5 walkable thieves across distinct areas and prison door is accessible`() {
+        val wave = EstateWorld.spawnThiefWave(wave = 1, playerX = 0.50f, playerY = 0.60f)
+        assertEquals(5, wave.size)
+        wave.forEach { thief ->
+            assertTrue("Thief ${thief.id} must spawn on walkable tile", EstateWorld.isWalkable(thief.x, thief.y))
+            assertFalse(thief.goingToPrison)
+            assertTrue(thief.hp >= 300f)
+        }
+        assertEquals(5, wave.map { it.x to it.y }.toSet().size)
+        assertTrue("Prison door must be walkable", EstateWorld.isWalkable(EstateWorld.prisonDoorX, EstateWorld.prisonDoorY))
+        assertFalse("Inside Penjara Selaras should block walking", EstateWorld.isWalkable(0.415f, 0.08f))
+    }
 }

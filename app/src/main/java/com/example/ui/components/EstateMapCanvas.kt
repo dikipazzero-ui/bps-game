@@ -333,19 +333,22 @@ private fun DrawScope.drawBlocks(w: Float, h: Float, textMeasurer: TextMeasurer)
         val topLeft = Offset(b.minX * w, b.minY * h)
         val bSize = Size((b.maxX - b.minX) * w, (b.maxY - b.minY) * h)
         drawRoundRect(
-            color = b.roofColor,
+            color = if (b.isPrison) Color(0xFF78350F) else b.roofColor,
             topLeft = topLeft,
             size = bSize,
             cornerRadius = CornerRadius(10f, 10f)
         )
         drawRoundRect(
-            color = b.accentColor.copy(alpha = 0.55f),
+            color = b.accentColor.copy(alpha = if (b.isPrison) 0.9f else 0.55f),
             topLeft = topLeft,
             size = bSize,
             cornerRadius = CornerRadius(10f, 10f),
-            style = Stroke(width = 2f)
+            style = Stroke(width = if (b.isPrison) 2.5f else 2f)
         )
-        val measured = textMeasurer.measure(b.label.removePrefix("BLOK "), style)
+        val measured = textMeasurer.measure(
+            if (b.isPrison) "PENJARA" else b.label.removePrefix("BLOK "),
+            style
+        )
         drawText(
             measured,
             topLeft = Offset(

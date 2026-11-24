@@ -261,13 +261,13 @@ fun PatrolHudScreen(
                     }
                 }
 
-                // 2. Transparent Floating Running-Text GANDI Ticker (Hanya teks berjalan, tidak menutupi layar)
+                // 2. Pemandu GANDI Cerewet — Teks berjalan transparan di BAWAH di antara analog dan tombol aksi
                 GandiTransparentMarquee(
                     room = room,
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
+                        .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(top = 6.dp, start = 16.dp, end = 16.dp)
+                        .padding(bottom = 12.dp, start = 122.dp, end = 164.dp)
                 )
 
                 // 3. Collapsible Squad / Gate / Radio Side Drawer
@@ -371,7 +371,14 @@ private fun GandiTransparentMarquee(
         label = "gandiMarqueeColor"
     )
     val sector = EstateWorld.byId(room.activeThiefSectorId)
-    val marqueeText = "GANDI [${mood.labelId}] • TARGET: ${sector.shortCode} (${sector.streetName}) — ${room.gandiLastLine}"
+    val chatterExtra = when (mood) {
+        GandiMood.PANICKED -> "Waduh komandan! Banyak maling mencar di gang sempit! Jangan sampai lolos ke kebun belakang ya, langsung tekan TANGKAP biar digelandang ke Penjara Selaras!"
+        GandiMood.ALERT -> "Awas mata elang! Periksa sela-sela rumah Blok Krisan, Cempaka, Cemara, sampai Flamboyan. Kalau jauh naik mobil atau motor patroli aja biar ngebut!"
+        GandiMood.PROUD -> "Mantap jiwa komandan! Satu lagi masuk sel Penjara Selaras, tapi awas masih ada komplotannya sembunyi di sudut komplek!"
+        GandiMood.SUSPICIOUS -> "Hati-hati komandan, gerak-gerik mencurigakan terpantau dekat Masjid Agung dan gerbang komplek. Siapkan senjata atau borgolnya!"
+        GandiMood.CHATTY -> "Laporan radio GANDI standby 24 jam siang-malam! Geser layar atas-bawah buat cek atap & gang, jangan lupa mampir Toko kalau poin udah tebel!"
+    }
+    val marqueeText = "GANDI [${mood.labelId}] • ${room.gandiLastLine} • ZONA: ${sector.shortCode} (${sector.streetName}) — $chatterExtra"
 
     Box(
         modifier = modifier

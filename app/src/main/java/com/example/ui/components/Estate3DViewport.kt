@@ -35,14 +35,17 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Checkroom
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GppGood
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -52,6 +55,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -69,15 +73,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.engine.WeaponSoundEngine
 import com.example.model.AttributeCatalog
 import com.example.model.EstateSector
 import com.example.model.EstateWorld
@@ -85,12 +91,14 @@ import com.example.model.MissionOutcome
 import com.example.model.PatrolRoom
 import com.example.model.RoomPlayer
 import com.example.model.TacticalPing
+import com.example.model.ThiefEntity
 import com.example.model.UniformCatalog
 import com.example.model.UserProfile
 import com.example.model.VehicleType
 import com.example.model.WeaponCatalog
 import com.example.model.WeaponStyle
 import com.example.model.WorldVehicle
+import com.example.ui.theme.JetBrainsMonoFontFamily
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -121,6 +129,11 @@ fun Estate3DViewport(
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
+    val soundEngine = remember { WeaponSoundEngine() }
+    DisposableEffect(Unit) {
+        onDispose { soundEngine.release() }
+    }
+
     val me = players.firstOrNull { it.userId == currentUserId }
 
     val equippedUniformId = profile?.equippedUniformId ?: me?.uniformId ?: "rookie_cadet"
@@ -132,35 +145,31 @@ fun Estate3DViewport(
     val weapon = WeaponCatalog.byId(equippedWeaponId)
     val attribute = AttributeCatalog.byId(equippedAttributeId)
 
-    // Local Player 3D & Vehicle State
+    // Local Player 3D, Camera (Yaw + Up/Down Pitch) & Vehicle State
     var localX by remember(room.id) { mutableFloatStateOf(me?.posX?.toFloat() ?: 0.50f) }
     var localY by remember(room.id) { mutableFloatStateOf(me?.posY?.toFloat() ?: 0.60f) }
     var localFacingDeg by remember(room.id) { mutableFloatStateOf(me?.facingDeg?.toFloat() ?: 0f) }
     var walkPhase by remember { mutableFloatStateOf(0f) }
     var camYaw by remember { mutableFloatStateOf(0f) }
+    var camPitch by remember { mutableFloatStateOf(0.18f) }
+    var isNightMode by remember(room.id) { mutableStateOf(false) }
 
     var vehicles by remember(room.id) { mutableStateOf(EstateWorld.defaultVehicles) }
     var mountedVehicleId by remember(room.id) { mutableStateOf<String?>(null) }
 
-    // Active Fleeing & Hiding Thief AI State (HP jauh lebih tebal!)
-    var thiefVisX by remember(room.id) { mutableFloatStateOf(room.activeThiefX.toFloat()) }
-    var thiefVisY by remember(room.id) { mutableFloatStateOf(room.activeThiefY.toFloat()) }
-    var thiefWalkPhase by remember { mutableFloatStateOf(0f) }
-    var thiefWanderAngle by remember(room.id) { mutableFloatStateOf(Random.nextFloat() * 2f * PI.toFloat()) }
-    var thiefLastHitMs by remember { mutableLongStateOf(0L) }
+    // Multi-Thief Wave State (banyak pencuri tersebar di berbagai blok & gang!)
+    var missionWave by remember(room.id) { mutableIntStateOf(1) }
+    var thieves by remember(room.id) { mutableStateOf(EstateWorld.spawnThiefWave(1, localX, localY)) }
     var thiefLastSyncMs by remember { mutableLongStateOf(0L) }
     var thiefSpottedHintUntilMs by remember { mutableLongStateOf(0L) }
 
     // GTA Mission Combat State
-    var missionWave by remember(room.id) { mutableIntStateOf(1) }
     var missionOutcome by remember(room.id) { mutableStateOf(MissionOutcome.ACTIVE) }
-    var timeRemainingSec by remember(room.id) { mutableFloatStateOf(150f) }
+    var timeRemainingSec by remember(room.id) { mutableFloatStateOf(180f) }
     var playerHp by remember(room.id) { mutableFloatStateOf(100f) }
     val maxPlayerHp = 100f
-    val maxThiefHp = 350f + (missionWave - 1) * 100f
-    var thiefHp by remember(room.id) { mutableFloatStateOf(350f) }
 
-    // Non-blocking Floating Banners (Zone Entry & Seamless Score Gain)
+    // Non-blocking Floating Banners
     var lastSectorId by remember(room.id) { mutableStateOf("") }
     var zoneBannerText by remember { mutableStateOf<String?>(null) }
     var zoneBannerUntilMs by remember { mutableLongStateOf(0L) }
@@ -181,9 +190,7 @@ fun Estate3DViewport(
     var camShakeX by remember { mutableFloatStateOf(0f) }
     var camShakeY by remember { mutableFloatStateOf(0f) }
     var lastAttackTimeMs by remember { mutableLongStateOf(0L) }
-    var lastThiefShotMs by remember { mutableLongStateOf(0L) }
     var lastDustMs by remember { mutableLongStateOf(0L) }
-    var lastThiefDustMs by remember { mutableLongStateOf(0L) }
     var lastSyncTimeMs by remember { mutableLongStateOf(0L) }
     var lastSyncedPos by remember { mutableStateOf(localX to localY) }
 
@@ -221,43 +228,27 @@ fun Estate3DViewport(
                 )
             }
         }
-        particles = (particles + newPts).takeLast(96)
+        particles = (particles + newPts).takeLast(110)
     }
 
-    fun spawnNextThiefSeamless(completedWave: Int, bonusPoints: Long) {
-        val nextWave = completedWave + 1
-        missionWave = nextWave
-        thiefHp = 350f + (nextWave - 1) * 100f
-        timeRemainingSec = 150f
-
-        // Pick distant sector so thief hides across expanded Bumi Papan Selaras
-        val distantCandidates = EstateWorld.sectors.filter { sec ->
-            EstateWorld.distance(localX, localY, sec.normX, sec.normY) >= 0.38f &&
-                EstateWorld.isWalkable(sec.normX, sec.normY)
+    fun sendThiefToPrison(targetThief: ThiefEntity, reasonLabel: String) {
+        if (targetThief.goingToPrison) return
+        soundEngine.playArrest()
+        spawnBurstParticles(targetThief.x, targetThief.y, 2.0f, Color(0xFF38BDF8), 18, 10f, 2.5f, withRing = true)
+        thieves = thieves.map {
+            if (it.id == targetThief.id) it.copy(goingToPrison = true, hp = 0f) else it
         }
-        val spawnSec = distantCandidates.randomOrNull() ?: EstateWorld.sectors.first()
-        val (sx, sy) = EstateWorld.moveWithCollision(
-            spawnSec.normX,
-            spawnSec.normY,
-            spawnSec.normX + (Random.nextFloat() - 0.5f) * 0.06f,
-            spawnSec.normY + (Random.nextFloat() - 0.5f) * 0.06f
-        )
-        thiefVisX = sx
-        thiefVisY = sy
-        thiefWanderAngle = Random.nextFloat() * 2f * PI.toFloat()
-        thiefSpottedHintUntilMs = System.currentTimeMillis() + 3500L
-
-        // Floating non-blocking reward text only (no popup!)
-        rewardToastText = "+${120L + bonusPoints} POIN • PENCURI BARU DI ${spawnSec.shortCode}"
-        rewardToastUntilMs = System.currentTimeMillis() + 2500L
-        onMissionVictory(bonusPoints, completedWave)
-        onSyncThiefEscape(spawnSec, sx, sy)
+        val secsLeft = timeRemainingSec.roundToInt().coerceAtLeast(0)
+        val bonusPoints = (secsLeft / 4L) + missionWave * 20L
+        rewardToastText = "$reasonLabel: ${targetThief.label} -> PENJARA SELARAS (+${120L + bonusPoints} POIN)"
+        rewardToastUntilMs = System.currentTimeMillis() + 2800L
+        onMissionVictory(bonusPoints, missionWave)
     }
 
     fun resetAfterFailure() {
         playerHp = maxPlayerHp
-        thiefHp = 350f + (missionWave - 1) * 100f
-        timeRemainingSec = 150f
+        thieves = EstateWorld.spawnThiefWave(missionWave, localX, localY)
+        timeRemainingSec = 180f
         missionOutcome = MissionOutcome.ACTIVE
         projectiles = emptyList()
         particles = emptyList()
@@ -274,21 +265,12 @@ fun Estate3DViewport(
         }
     }
 
-    // For non-host clients, smoothly follow Firestore thief coordinate
-    val isHost = room.hostUid.isEmpty() || room.hostUid == currentUserId
-    LaunchedEffect(room.activeThiefX, room.activeThiefY, isHost) {
-        if (!isHost) {
-            thiefVisX = room.activeThiefX.toFloat()
-            thiefVisY = room.activeThiefY.toFloat()
-        }
-    }
-
     val currentSector = EstateWorld.nearestTo(localX, localY)
     LaunchedEffect(currentSector.id) {
         if (currentSector.id != lastSectorId) {
             lastSectorId = currentSector.id
             zoneBannerText = "MEMASUKI ${currentSector.name.uppercase()}"
-            zoneBannerUntilMs = System.currentTimeMillis() + 2600L
+            zoneBannerUntilMs = System.currentTimeMillis() + 2500L
         }
     }
 
@@ -303,7 +285,7 @@ fun Estate3DViewport(
         label = "pulse3dVal"
     )
 
-    // 60 FPS Combat, Vehicle Driving, Thief Run-and-Hide AI, Particles & Timer Loop
+    // 60 FPS Combat, Vehicle Driving, Multi-Thief AI, Prison Escort, Particles & Timer Loop
     LaunchedEffect(room.id, attribute.id, uniform.id, missionOutcome) {
         var lastNanos = 0L
         while (true) {
@@ -320,9 +302,9 @@ fun Estate3DViewport(
                     rewardToastText = null
                 }
 
-                // Periodic brief radar ping pulse every 14 seconds so thief isn't impossible across 360m
-                if (((animClock % 14f) < 0.04f) && nowMs > thiefSpottedHintUntilMs) {
-                    thiefSpottedHintUntilMs = nowMs + 2800L
+                // Periodic radar sweep pulse
+                if (((animClock % 12f) < 0.04f) && nowMs > thiefSpottedHintUntilMs) {
+                    thiefSpottedHintUntilMs = nowMs + 3000L
                 }
 
                 // Camera micro-shake decay
@@ -362,7 +344,7 @@ fun Estate3DViewport(
                             if (proj.isEnemy) {
                                 val distHit = EstateWorld.distance(proj.toX, proj.toY, localX, localY)
                                 if (distHit < 0.065f && missionOutcome == MissionOutcome.ACTIVE) {
-                                    val rawDmg = 14f + missionWave * 2.5f
+                                    val rawDmg = 12f + missionWave * 2.2f
                                     val totalArmor = (uniform.damageReduction + (activeVehicle?.type?.armorBonus ?: 0f)).coerceAtMost(0.88f)
                                     val mitigated = rawDmg * (1f - totalArmor)
                                     playerHp = (playerHp - mitigated).coerceAtLeast(0f)
@@ -378,7 +360,7 @@ fun Estate3DViewport(
                                 spawnBurstParticles(
                                     proj.toX, proj.toY, 1.4f,
                                     if (isBlast) Color(0xFFF97316) else wpn.accentColor,
-                                    count = if (isBlast) 20 else 8,
+                                    count = if (isBlast) 22 else 8,
                                     speed = if (isBlast) 15f else 7f,
                                     size = if (isBlast) 3.2f else 1.6f,
                                     withRing = isBlast
@@ -404,94 +386,161 @@ fun Estate3DViewport(
                     return@withFrameNanos
                 }
 
-                // Active Run & Hide Thief AI (Host authoritative)
-                val dThief = EstateWorld.distance(localX, localY, thiefVisX, thiefVisY)
+                // Multi-Thief AI + Straight-to-Prison Escort
                 val thiefStunned = nowMs < thiefStunnedUntilMs
-                val recentlyShot = (nowMs - thiefLastHitMs) < 3500L
-                val thiefHasLOS = EstateWorld.hasLineOfSight(localX, localY, thiefVisX, thiefVisY)
+                val newEnemyProjectiles = mutableListOf<Projectile3D>()
+                val updatedThieves = mutableListOf<ThiefEntity>()
 
-                if (isHost) {
+                for (thief in thieves) {
+                    if (thief.goingToPrison) {
+                        // Diborgol & tidak bisa kabur atau menembak -> jalan lurus masuk Penjara Selaras
+                        val dPrison = EstateWorld.distance(thief.x, thief.y, EstateWorld.prisonDoorX, EstateWorld.prisonDoorY)
+                        if (dPrison <= 0.028f) {
+                            spawnBurstParticles(EstateWorld.prisonDoorX, EstateWorld.prisonDoorY, 2.2f, Color(0xFFF59E0B), 16, 8f, 2.2f, withRing = true)
+                            continue // Masuk sel penjara!
+                        }
+                        val prisonAngle = atan2(
+                            (EstateWorld.prisonDoorY - thief.y).toDouble(),
+                            (EstateWorld.prisonDoorX - thief.x).toDouble()
+                        ).toFloat()
+                        val escortSpeed = 0.22f
+                        val tx = thief.x + cos(prisonAngle) * escortSpeed * dt
+                        val ty = thief.y + sin(prisonAngle) * escortSpeed * dt
+                        val (sx, sy) = EstateWorld.moveWithCollision(thief.x, thief.y, tx, ty)
+                        val moved = hypot(sx - thief.x, sy - thief.y)
+                        val finalPos = if (moved < escortSpeed * dt * 0.25f) {
+                            // Terhalang bangunan -> geser langsung menuju pintu penjara
+                            val lerpT = (dt * 1.4f).coerceAtMost(0.4f)
+                            (thief.x + (EstateWorld.prisonDoorX - thief.x) * lerpT) to
+                                (thief.y + (EstateWorld.prisonDoorY - thief.y) * lerpT)
+                        } else sx to sy
+
+                        updatedThieves.add(
+                            thief.copy(
+                                x = finalPos.first,
+                                y = finalPos.second,
+                                walkPhase = thief.walkPhase + dt * 11f,
+                                wanderAngle = prisonAngle
+                            )
+                        )
+                        continue
+                    }
+
+                    val dThief = EstateWorld.distance(localX, localY, thief.x, thief.y)
+                    val recentlyShot = (nowMs - thief.lastHitMs) < 3500L
+                    val hasLOS = EstateWorld.hasLineOfSight(localX, localY, thief.x, thief.y)
+
                     val thiefSpeed = when {
                         thiefStunned -> 0.032f
                         recentlyShot -> 0.145f
-                        dThief < 0.30f -> 0.125f
-                        else -> 0.072f
+                        dThief < 0.28f -> 0.125f
+                        else -> 0.070f
                     }
-                    val shouldFlee = dThief < 0.30f || recentlyShot
+                    val shouldFlee = dThief < 0.28f || recentlyShot
 
+                    var nextAngle = thief.wanderAngle
                     val chosenStep: Pair<Float, Float> = if (shouldFlee) {
-                        val awayAngle = atan2((thiefVisY - localY).toDouble(), (thiefVisX - localX).toDouble()).toFloat()
+                        val awayAngle = atan2((thief.y - localY).toDouble(), (thief.x - localX).toDouble()).toFloat()
                         val candidates = listOf(0f, 0.70f, -0.70f, 1.35f, -1.35f, 2.1f, -2.1f)
-                        var bestX = thiefVisX
-                        var bestY = thiefVisY
+                        var bestX = thief.x
+                        var bestY = thief.y
                         var bestScore = -999f
 
                         for (offset in candidates) {
                             val ang = awayAngle + offset
-                            val tx = thiefVisX + cos(ang) * thiefSpeed * dt
-                            val ty = thiefVisY + sin(ang) * thiefSpeed * dt
-                            val (sx, sy) = EstateWorld.moveWithCollision(thiefVisX, thiefVisY, tx, ty)
-                            val moved = hypot(sx - thiefVisX, sy - thiefVisY)
+                            val tx = thief.x + cos(ang) * thiefSpeed * dt
+                            val ty = thief.y + sin(ang) * thiefSpeed * dt
+                            val (sx, sy) = EstateWorld.moveWithCollision(thief.x, thief.y, tx, ty)
+                            val moved = hypot(sx - thief.x, sy - thief.y)
                             if (moved > thiefSpeed * dt * 0.35f) {
                                 val newDist = EstateWorld.distance(localX, localY, sx, sy)
-                                val hidesFromPlayer = if (!EstateWorld.hasLineOfSight(localX, localY, sx, sy)) 0.18f else 0f
-                                val score = newDist + hidesFromPlayer - kotlin.math.abs(offset) * 0.03f
+                                val hides = if (!EstateWorld.hasLineOfSight(localX, localY, sx, sy)) 0.18f else 0f
+                                val score = newDist + hides - kotlin.math.abs(offset) * 0.03f
                                 if (score > bestScore) {
                                     bestScore = score
                                     bestX = sx
                                     bestY = sy
-                                    thiefWanderAngle = ang
+                                    nextAngle = ang
                                 }
                             }
                         }
                         bestX to bestY
                     } else {
-                        // Prowl between blocks & duck behind cover
                         if (Random.nextFloat() < dt * 0.65f) {
-                            thiefWanderAngle += (Random.nextFloat() - 0.5f) * 1.4f
+                            nextAngle += (Random.nextFloat() - 0.5f) * 1.4f
                         }
-                        val tx = thiefVisX + cos(thiefWanderAngle) * thiefSpeed * dt
-                        val ty = thiefVisY + sin(thiefWanderAngle) * thiefSpeed * dt
-                        val (sx, sy) = EstateWorld.moveWithCollision(thiefVisX, thiefVisY, tx, ty)
-                        if (hypot(sx - thiefVisX, sy - thiefVisY) < thiefSpeed * dt * 0.25f) {
-                            thiefWanderAngle += (PI.toFloat() * 0.65f)
+                        val tx = thief.x + cos(nextAngle) * thiefSpeed * dt
+                        val ty = thief.y + sin(nextAngle) * thiefSpeed * dt
+                        val (sx, sy) = EstateWorld.moveWithCollision(thief.x, thief.y, tx, ty)
+                        if (hypot(sx - thief.x, sy - thief.y) < thiefSpeed * dt * 0.25f) {
+                            nextAngle += PI.toFloat() * 0.65f
                         }
                         sx to sy
                     }
 
-                    val movedThief = hypot(chosenStep.first - thiefVisX, chosenStep.second - thiefVisY)
-                    thiefVisX = chosenStep.first
-                    thiefVisY = chosenStep.second
-                    if (movedThief > 0.0002f) {
-                        thiefWalkPhase += dt * (if (shouldFlee) 13f else 7.5f)
-                        if (shouldFlee && nowMs - lastThiefDustMs >= 260L) {
-                            lastThiefDustMs = nowMs
-                            spawnBurstParticles(thiefVisX, thiefVisY, 0.25f, Color(0xFF94A3B8), 2, 2.2f, 1.4f)
-                        }
+                    val movedThief = hypot(chosenStep.first - thief.x, chosenStep.second - thief.y)
+                    var nextDust = thief.lastDustMs
+                    if (movedThief > 0.0002f && shouldFlee && nowMs - thief.lastDustMs >= 300L) {
+                        nextDust = nowMs
+                        spawnBurstParticles(chosenStep.first, chosenStep.second, 0.25f, Color(0xFF94A3B8), 2, 2.2f, 1.3f)
                     }
 
-                    if (nowMs - thiefLastSyncMs >= 2600L) {
-                        thiefLastSyncMs = nowMs
-                        onSyncThiefEscape(EstateWorld.nearestTo(thiefVisX, thiefVisY), thiefVisX, thiefVisY)
+                    var nextShotMs = thief.lastShotMs
+                    if (hasLOS && dThief <= 0.22f && !thiefStunned && nowMs - thief.lastShotMs >= 1850L) {
+                        nextShotMs = nowMs
+                        newEnemyProjectiles.add(
+                            Projectile3D(
+                                fromX = chosenStep.first,
+                                fromY = chosenStep.second,
+                                toX = localX,
+                                toY = localY,
+                                progress = 0.05f,
+                                color = Color(0xFFEF4444),
+                                isEnemy = true
+                            )
+                        )
+                        spawnBurstParticles(chosenStep.first, chosenStep.second, 1.8f, Color(0xFFFCA5A5), 4, 4f, 1.2f)
                     }
-                }
 
-                // Thief Return Fire when he has Line-of-Sight within combat range
-                if (room.thiefSpotted && thiefHasLOS && dThief <= 0.24f && !thiefStunned && nowMs - lastThiefShotMs >= 1650L) {
-                    lastThiefShotMs = nowMs
-                    projectiles = projectiles + Projectile3D(
-                        fromX = thiefVisX,
-                        fromY = thiefVisY,
-                        toX = localX,
-                        toY = localY,
-                        progress = 0.05f,
-                        color = Color(0xFFEF4444),
-                        isEnemy = true
+                    updatedThieves.add(
+                        thief.copy(
+                            x = chosenStep.first,
+                            y = chosenStep.second,
+                            walkPhase = if (movedThief > 0.0002f) thief.walkPhase + dt * (if (shouldFlee) 13f else 7.5f) else thief.walkPhase,
+                            wanderAngle = nextAngle,
+                            lastShotMs = nextShotMs,
+                            lastDustMs = nextDust
+                        )
                     )
-                    spawnBurstParticles(thiefVisX, thiefVisY, 1.8f, Color(0xFFFCA5A5), 5, 4f, 1.3f)
                 }
 
-                // Player Movement (On Foot vs Driving Mobil / Motor)
+                if (newEnemyProjectiles.isNotEmpty()) {
+                    projectiles = projectiles + newEnemyProjectiles
+                }
+
+                if (updatedThieves.isEmpty()) {
+                    // Seluruh maling gelombang ini berhasil masuk penjara -> gelombang baru muncul otomatis!
+                    val nextWave = missionWave + 1
+                    missionWave = nextWave
+                    timeRemainingSec = 180f
+                    val spawned = EstateWorld.spawnThiefWave(nextWave, localX, localY)
+                    thieves = spawned
+                    rewardToastText = "GELOMBANG #$nextWave: ${spawned.size} PENCURI BARU MENYEBAR!"
+                    rewardToastUntilMs = nowMs + 3200L
+                    spawned.firstOrNull()?.let { firstT ->
+                        onSyncThiefEscape(EstateWorld.nearestTo(firstT.x, firstT.y), firstT.x, firstT.y)
+                    }
+                } else {
+                    thieves = updatedThieves
+                    val nearestActive = updatedThieves.filter { !it.goingToPrison }
+                        .minByOrNull { EstateWorld.distance(localX, localY, it.x, it.y) }
+                    if (nearestActive != null && nowMs - thiefLastSyncMs >= 2600L) {
+                        thiefLastSyncMs = nowMs
+                        onSyncThiefEscape(EstateWorld.nearestTo(nearestActive.x, nearestActive.y), nearestActive.x, nearestActive.y)
+                    }
+                }
+
+                // Player Movement (On Foot vs Mobil / Motor)
                 val joyMag = hypot(joyX, joyY)
                 if (joyMag > 0.08f) {
                     val isDriving = activeVehicle != null
@@ -553,12 +602,27 @@ fun Estate3DViewport(
     }
 
     val nowMs = System.currentTimeMillis()
-    val distToThief = EstateWorld.distance(localX, localY, thiefVisX, thiefVisY)
-    val hasLOS = EstateWorld.hasLineOfSight(localX, localY, thiefVisX, thiefVisY)
-    val thiefVisible3D = hasLOS || distToThief <= (0.14f + attribute.visionBoost * 0.14f)
-    val thiefDetectedHud = hasLOS || distToThief <= (0.20f + attribute.visionBoost * 0.20f) || nowMs < thiefSpottedHintUntilMs
-    val inCatchRange = distToThief <= (0.09f + attribute.catchRadiusBonus * 0.4f)
-    val isThiefStunned = nowMs < thiefStunnedUntilMs
+    val activeThieves = thieves.filter { !it.goingToPrison }
+    val nearestThief = activeThieves.minByOrNull { EstateWorld.distance(localX, localY, it.x, it.y) }
+    val distToNearest = nearestThief?.let { EstateWorld.distance(localX, localY, it.x, it.y) } ?: 999f
+
+    val visibleThiefIds = remember(thieves, localX, localY, attribute.visionBoost) {
+        thieves.filter { t ->
+            t.goingToPrison ||
+                EstateWorld.hasLineOfSight(localX, localY, t.x, t.y) ||
+                EstateWorld.distance(localX, localY, t.x, t.y) <= (0.16f + attribute.visionBoost * 0.14f)
+        }.map { it.id }.toSet()
+    }
+    val radarVisibleThiefIds = remember(thieves, localX, localY, attribute.visionBoost, nowMs < thiefSpottedHintUntilMs) {
+        thieves.filter { t ->
+            t.goingToPrison ||
+                nowMs < thiefSpottedHintUntilMs ||
+                EstateWorld.hasLineOfSight(localX, localY, t.x, t.y) ||
+                EstateWorld.distance(localX, localY, t.x, t.y) <= (0.20f + attribute.visionBoost * 0.18f)
+        }.map { it.id }.toSet()
+    }
+
+    val inCatchRange = nearestThief != null && distToNearest <= (0.14f + attribute.catchRadiusBonus * 0.45f)
     val totalSecs = timeRemainingSec.roundToInt().coerceAtLeast(0)
     val timerText = "%02d:%02d".format(totalSecs / 60, totalSecs % 60)
 
@@ -569,9 +633,10 @@ fun Estate3DViewport(
     } else null
 
     val effectiveArmorPct = ((uniform.damageReduction + (mountedVehicle?.type?.armorBonus ?: 0f)).coerceAtMost(0.88f) * 100).toInt()
+    val gtaCashDisplay = "$" + ((profile?.points ?: 0L).coerceAtLeast(0L)).toString().padStart(8, '0')
 
     Box(modifier = modifier) {
-        // 1. Fullscreen 4D Perspective Game Canvas
+        // 1. Fullscreen Solid 3D World Canvas (Drag horizontal = Yaw, vertical = Look Up / Down Pitch)
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
@@ -579,6 +644,7 @@ fun Estate3DViewport(
                 .pointerInput(Unit) {
                     detectDragGestures { _, dragAmount ->
                         camYaw += dragAmount.x * 0.006f
+                        camPitch = (camPitch - dragAmount.y * 0.0045f).coerceIn(-0.22f, 0.85f)
                     }
                 }
         ) {
@@ -596,13 +662,13 @@ fun Estate3DViewport(
                 localWeaponId = equippedWeaponId,
                 localAttributeId = equippedAttributeId,
                 localUniformId = equippedUniformId,
-                thiefPos = thiefVisX to thiefVisY,
-                thiefVisible = thiefVisible3D,
-                thiefStunned = isThiefStunned,
-                thiefWalkPhase = thiefWalkPhase,
+                thieves = thieves,
+                visibleThiefIds = visibleThiefIds,
                 projectiles = projectiles,
                 particles = particles,
                 camYaw = camYaw,
+                camPitch = camPitch,
+                isNightMode = isNightMode,
                 camShakeX = camShakeX,
                 camShakeY = camShakeY,
                 pulseScale = pulseScale,
@@ -611,72 +677,45 @@ fun Estate3DViewport(
             )
         }
 
-        // 2. POJOK KIRI ATAS (dibawah marquee transparan): HP, Armor Lv, Stamina & Status Kendaraan
-        Surface(
-            color = Color(0xC8090E1A),
-            shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, Color(0xFF334155)),
+        // 2. POJOK KIRI ATAS (GTA San Andreas style): Peta / Mini-Radar dipindah ke ATAS!
+        MiniRadarOverlay(
+            players = players,
+            vehicles = vehicles,
+            thieves = thieves,
+            radarVisibleThiefIds = radarVisibleThiefIds,
+            localX = localX,
+            localY = localY,
+            localFacingDeg = localFacingDeg,
+            isPingMode = isPingMode,
+            onRadarTap = { nx, ny ->
+                val sec = EstateWorld.nearestTo(nx, ny)
+                if (isPingMode) {
+                    onRadarPingTap(sec, nx, ny)
+                } else {
+                    val (safeX, safeY) = EstateWorld.moveWithCollision(localX, localY, nx, ny)
+                    localX = safeX
+                    localY = safeY
+                    onMoveSync(sec, safeX, safeY, localFacingDeg)
+                }
+            },
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 34.dp, start = 10.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("HP", style = MaterialTheme.typography.labelSmall, color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
-                    LinearProgressIndicator(
-                        progress = { (playerHp / maxPlayerHp).coerceIn(0f, 1f) },
-                        color = if (playerHp <= 30f) Color(0xFFEF4444) else Color(0xFF10B981),
-                        trackColor = Color(0xFF1E293B),
-                        modifier = Modifier
-                            .width(74.dp)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                    )
-                    Text("${playerHp.roundToInt()}", style = MaterialTheme.typography.labelSmall, color = Color.White, fontSize = 10.sp)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Filled.Shield, contentDescription = null, tint = uniform.trimColor, modifier = Modifier.size(11.dp))
-                    Text(
-                        text = if (mountedVehicle != null) {
-                            "ARMOR LV.${uniform.armorLevel} + ${mountedVehicle.type.label.uppercase()} (-$effectiveArmorPct%)"
-                        } else {
-                            "ARMOR LV.${uniform.armorLevel} (-$effectiveArmorPct%)"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = uniform.trimColor,
-                        fontSize = 9.sp
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("STA", style = MaterialTheme.typography.labelSmall, color = Color(0xFF94A3B8), fontSize = 9.sp)
-                    LinearProgressIndicator(
-                        progress = { stamina },
-                        color = if (sprintEnabled) Color(0xFFF59E0B) else Color(0xFF38BDF8),
-                        trackColor = Color(0xFF1E293B),
-                        modifier = Modifier
-                            .width(70.dp)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                    )
-                }
-            }
-        }
+                .padding(top = 10.dp, start = 10.dp)
+                .size(104.dp)
+        )
 
-        // 3. ATAS TENGAH (dibawah marquee transparan): HP Pencuri (saat terdeteksi) + Notif Zona / Poin non-blocking
+        // 3. ATAS TENGAH: HP Maling Terdekat (saat terlihat) + Notif Zona / Penangkapan Non-Blocking
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 34.dp),
+                .padding(top = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            if (room.thiefSpotted && thiefDetectedHud && missionOutcome == MissionOutcome.ACTIVE) {
+            if (nearestThief != null && nearestThief.id in visibleThiefIds && missionOutcome == MissionOutcome.ACTIVE) {
                 Surface(
-                    color = Color(0xD01A0B0E),
-                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xD81A0B0E),
+                    shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Color(0xFFEF4444))
                 ) {
                     Column(
@@ -684,18 +723,18 @@ fun Estate3DViewport(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "PENCURI ${(distToThief * WORLD_SPAN).toInt()}m • ${thiefHp.roundToInt()}/${maxThiefHp.toInt()} HP",
+                            text = "${nearestThief.label} (${(distToNearest * WORLD_SPAN).toInt()}m) • ${nearestThief.hp.roundToInt()}/${nearestThief.maxHp.toInt()} HP",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFFFCA5A5),
                             fontWeight = FontWeight.Bold,
                             fontSize = 10.sp
                         )
                         LinearProgressIndicator(
-                            progress = { (thiefHp / maxThiefHp).coerceIn(0f, 1f) },
+                            progress = { (nearestThief.hp / nearestThief.maxHp).coerceIn(0f, 1f) },
                             color = Color(0xFFEF4444),
                             trackColor = Color(0xFF450A0A),
                             modifier = Modifier
-                                .width(126.dp)
+                                .width(134.dp)
                                 .height(5.dp)
                                 .clip(RoundedCornerShape(3.dp))
                         )
@@ -744,49 +783,114 @@ fun Estate3DViewport(
             }
         }
 
-        // 4. POJOK KANAN ATAS: Timer, Poin, Lokasi, Shortcut Senjata, TOKO, REGU & KELUAR
+        // 4. POJOK KANAN ATAS (GTA San Andreas HUD Cluster): Waktu/Siang-Malam, $Poin, HP/Armor + Kotak Senjata, Toko/Regu/Keluar
         Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 34.dp, end = 10.dp),
+                .padding(top = 10.dp, end = 10.dp),
             horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            Surface(
-                color = Color(0xC8090E1A),
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, if (totalSecs <= 20) Color(0xFFEF4444) else Color(0xFFF59E0B))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Kolom Jam Misi, Mode Siang/Malam, Uang/$Poin, HP & Armor
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.End) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            onClick = { isNightMode = !isNightMode },
+                            color = if (isNightMode) Color(0xD81E1B4B) else Color(0xD8422006),
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, if (isNightMode) Color(0xFF818CF8) else Color(0xFFFBBF24)),
+                            modifier = Modifier.testTag("day_night_toggle_btn")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isNightMode) Icons.Filled.DarkMode else Icons.Filled.WbSunny,
+                                    contentDescription = "Mode Siang atau Malam",
+                                    tint = if (isNightMode) Color(0xFFA5B4FC) else Color(0xFFFDE047),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = if (isNightMode) "MALAM" else "SIANG",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+
                         Text(
-                            text = "MISI #$missionWave • ${currentSector.shortCode}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF94A3B8),
-                            fontSize = 9.sp
-                        )
-                        Text(
-                            text = "${profile?.points ?: 0} POIN",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF22D3EE),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
+                            text = timerText,
+                            style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFontFamily),
+                            color = if (totalSecs <= 20) Color(0xFFEF4444) else Color(0xFFFDE047),
+                            fontWeight = FontWeight.ExtraBold
                         )
                     }
-                    Text(
-                        text = timerText,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (totalSecs <= 20) Color(0xFFEF4444) else Color(0xFFFDE047),
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = gtaCashDisplay,
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFontFamily),
+                        color = Color(0xFF4ADE80),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.sp
+                    )
+
+                    // Bar HP Merah ala GTA SA
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "${activeThieves.size} MALING • ${currentSector.shortCode}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFE2E8F0),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        LinearProgressIndicator(
+                            progress = { (playerHp / maxPlayerHp).coerceIn(0f, 1f) },
+                            color = Color(0xFFDC2626),
+                            trackColor = Color(0xFF450A0A),
+                            modifier = Modifier
+                                .width(84.dp)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .border(1.dp, Color.Black, RoundedCornerShape(2.dp))
+                        )
+                    }
+
+                    // Bar Armor + Stamina tipis
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Filled.Shield, null, tint = uniform.trimColor, modifier = Modifier.size(10.dp))
+                        Text(
+                            text = if (mountedVehicle != null) "LV.${uniform.armorLevel}+${mountedVehicle.type.label.uppercase()}" else "ARMOR LV.${uniform.armorLevel} (-$effectiveArmorPct%)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = uniform.trimColor,
+                            fontSize = 8.sp
+                        )
+                        LinearProgressIndicator(
+                            progress = { stamina },
+                            color = if (sprintEnabled) Color(0xFFF59E0B) else Color(0xFF38BDF8),
+                            trackColor = Color(0xFF0F172A),
+                            modifier = Modifier
+                                .width(42.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                        )
+                    }
+                }
+
+                // Kotak Ikon Senjata GTA SA di pojok kanan atas (ketuk untuk ganti senjata)
                 Surface(
                     onClick = {
                         if (unlockedWeapons.size > 1) {
@@ -797,39 +901,55 @@ fun Estate3DViewport(
                             onOpenShop()
                         }
                     },
-                    color = Color(0xD80F172A),
-                    shape = RoundedCornerShape(9.dp),
-                    border = BorderStroke(1.dp, weapon.accentColor),
-                    modifier = Modifier.testTag("hud_switch_weapon_btn")
+                    color = Color(0xD8090E1A),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(2.dp, weapon.accentColor),
+                    modifier = Modifier
+                        .size(56.dp)
+                        .testTag("hud_switch_weapon_btn")
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(Icons.Filled.SwapHoriz, null, tint = weapon.accentColor, modifier = Modifier.size(13.dp))
+                        val weaponIcon = when (weapon.style) {
+                            WeaponStyle.PISTOL -> Icons.Filled.GppGood
+                            WeaponStyle.GRENADE -> Icons.Filled.LocalFireDepartment
+                            WeaponStyle.AK47 -> Icons.Filled.Bolt
+                            WeaponStyle.BAZOOKA -> Icons.Filled.RocketLaunch
+                        }
+                        Icon(
+                            imageVector = weaponIcon,
+                            contentDescription = "Ganti Senjata",
+                            tint = weapon.accentColor,
+                            modifier = Modifier.size(24.dp)
+                        )
                         Text(
                             text = weapon.name.substringBefore(" "),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 8.sp
                         )
                     }
                 }
+            }
 
+            // Tombol cepat TOKO, REGU, KELUAR tepat di bawah kotak HUD
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     onClick = onOpenShop,
                     color = Color(0xE6F59E0B),
-                    shape = RoundedCornerShape(9.dp),
+                    shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.testTag("hud_open_shop_btn")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Icon(Icons.Filled.ShoppingBag, null, tint = Color(0xFF090E1A), modifier = Modifier.size(13.dp))
+                        Icon(Icons.Filled.ShoppingBag, null, tint = Color(0xFF090E1A), modifier = Modifier.size(12.dp))
                         Text("TOKO", style = MaterialTheme.typography.labelSmall, color = Color(0xFF090E1A), fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
                     }
                 }
@@ -837,16 +957,16 @@ fun Estate3DViewport(
                 Surface(
                     onClick = onToggleDrawer,
                     color = Color(0xD80F172A),
-                    shape = RoundedCornerShape(9.dp),
+                    shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Color(0xFF38BDF8)),
                     modifier = Modifier.testTag("hud_toggle_drawer_btn")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Icon(Icons.Filled.Forum, null, tint = Color(0xFF38BDF8), modifier = Modifier.size(13.dp))
+                        Icon(Icons.Filled.Forum, null, tint = Color(0xFF38BDF8), modifier = Modifier.size(12.dp))
                         Text("REGU", style = MaterialTheme.typography.labelSmall, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold, fontSize = 10.sp)
                     }
                 }
@@ -854,7 +974,7 @@ fun Estate3DViewport(
                 Surface(
                     onClick = onExitRoom,
                     color = Color(0xCC1E293B),
-                    shape = RoundedCornerShape(9.dp),
+                    shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Color(0xFF64748B)),
                     modifier = Modifier.testTag("exit_room_button")
                 ) {
@@ -864,41 +984,13 @@ fun Estate3DViewport(
                         tint = Color.White,
                         modifier = Modifier
                             .padding(5.dp)
-                            .size(15.dp)
+                            .size(14.dp)
                     )
                 }
             }
         }
 
-        // 5. POJOK KIRI BAWAH (Landscape): Mini-Map Zoomed GTA + Joystick di kanannya (tidak bertumpuk)
-        MiniRadarOverlay(
-            room = room,
-            players = players,
-            vehicles = vehicles,
-            localX = localX,
-            localY = localY,
-            localFacingDeg = localFacingDeg,
-            thiefX = thiefVisX,
-            thiefY = thiefVisY,
-            showThiefOnRadar = thiefDetectedHud,
-            isPingMode = isPingMode,
-            onRadarTap = { nx, ny ->
-                val sec = EstateWorld.nearestTo(nx, ny)
-                if (isPingMode) {
-                    onRadarPingTap(sec, nx, ny)
-                } else {
-                    val (safeX, safeY) = EstateWorld.moveWithCollision(localX, localY, nx, ny)
-                    localX = safeX
-                    localY = safeY
-                    onMoveSync(sec, safeX, safeY, localFacingDeg)
-                }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 10.dp, bottom = 10.dp)
-                .size(102.dp)
-        )
-
+        // 5. POJOK KIRI BAWAH: HANYA Analog Joystick saja (Peta sudah dipindah ke atas!)
         VirtualJoystick3D(
             joyX = joyX,
             joyY = joyY,
@@ -914,31 +1006,34 @@ fun Estate3DViewport(
             },
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 124.dp, bottom = 10.dp)
-                .size(92.dp)
+                .padding(start = 14.dp, bottom = 12.dp)
+                .size(96.dp)
         )
 
-        // 6. POJOK KANAN BAWAH: Naik/Turun Mobil & Motor, Sprint, Tangkap & Tembak/Lempar
+        // 6. POJOK KANAN BAWAH: Tangkap (bekukan maling & arahkan ke Penjara!), Naik/Turun Kendaraan, Sprint, Tembak
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 12.dp, bottom = 10.dp),
+                .padding(end = 14.dp, bottom = 12.dp),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (inCatchRange && (isThiefStunned || thiefHp <= maxThiefHp * 0.45f) && missionOutcome == MissionOutcome.ACTIVE) {
+            if (inCatchRange && nearestThief != null && missionOutcome == MissionOutcome.ACTIVE) {
                 Button(
-                    onClick = onApprehend,
+                    onClick = {
+                        sendThiefToPrison(nearestThief, "TERTANGKAP")
+                        onApprehend()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B), contentColor = Color(0xFF090E1A)),
                     shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                     modifier = Modifier
-                        .height(44.dp)
+                        .height(46.dp)
                         .testTag("hud_3d_catch_btn")
                 ) {
                     Icon(Icons.Filled.GppGood, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("TANGKAP!", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(5.dp))
+                    Text("TANGKAP!", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold)
                 }
             }
 
@@ -1017,19 +1112,29 @@ fun Estate3DViewport(
                     }
                 }
 
-                // Tombol Tembak / Lempar Granat / Bazoka
+                // Tombol Tembak / Lempar (Suara Pistol, AK-47, Granat, Bazoka)
                 Surface(
                     onClick = {
                         if (missionOutcome != MissionOutcome.ACTIVE) return@Surface
                         val now = System.currentTimeMillis()
                         if (now - lastAttackTimeMs >= weapon.cooldownMs) {
                             lastAttackTimeMs = now
+                            soundEngine.playWeaponFire(weapon.style)
+
                             val aimRad = Math.toRadians(localFacingDeg.toDouble()).toFloat()
                             val hitRange = weapon.rangeNorm * 0.65f + weapon.aoeRadius * 0.65f
-                            val canHitThrough = weapon.aoeRadius > 0f || EstateWorld.hasLineOfSight(localX, localY, thiefVisX, thiefVisY)
-                            val isHit = distToThief <= hitRange && canHitThrough
-                            val targetPt = if (isHit) {
-                                thiefVisX to thiefVisY
+
+                            // Cari target maling aktif terdekat dalam jangkauan tembak
+                            val hitTarget = activeThieves
+                                .filter { t ->
+                                    val d = EstateWorld.distance(localX, localY, t.x, t.y)
+                                    val canReach = weapon.aoeRadius > 0f || EstateWorld.hasLineOfSight(localX, localY, t.x, t.y)
+                                    d <= hitRange && canReach
+                                }
+                                .minByOrNull { EstateWorld.distance(localX, localY, it.x, it.y) }
+
+                            val targetPt = if (hitTarget != null) {
+                                hitTarget.x to hitTarget.y
                             } else {
                                 (localX + sin(aimRad) * weapon.rangeNorm * 0.6f).coerceIn(0.04f, 0.96f) to
                                     (localY - cos(aimRad) * weapon.rangeNorm * 0.6f).coerceIn(0.04f, 0.96f)
@@ -1047,16 +1152,28 @@ fun Estate3DViewport(
                             spawnBurstParticles(localX, localY, 2.0f, weapon.accentColor, 4, 3f, 1.0f)
                             camShakeStrength = (camShakeStrength + if (weapon.aoeRadius > 0f) 4f else 1.8f).coerceAtMost(14f)
 
-                            if (isHit) {
-                                thiefLastHitMs = now
+                            if (hitTarget != null) {
                                 thiefSpottedHintUntilMs = now + 4500L
-                                val nextHp = (thiefHp - weapon.damage).coerceAtLeast(0f)
-                                thiefHp = nextHp
+                                val affectedIds = if (weapon.aoeRadius > 0f) {
+                                    activeThieves.filter {
+                                        EstateWorld.distance(hitTarget.x, hitTarget.y, it.x, it.y) <= weapon.aoeRadius * 0.6f
+                                    }.map { it.id }.toSet()
+                                } else {
+                                    setOf(hitTarget.id)
+                                }
+
+                                val defeated = mutableListOf<ThiefEntity>()
+                                thieves = thieves.map { t ->
+                                    if (t.id in affectedIds && !t.goingToPrison) {
+                                        val nextHp = (t.hp - weapon.damage).coerceAtLeast(0f)
+                                        val updated = t.copy(hp = nextHp, lastHitMs = now)
+                                        if (nextHp <= 0f) defeated.add(updated)
+                                        updated
+                                    } else t
+                                }
                                 onWeaponHitThief()
-                                if (nextHp <= 0f) {
-                                    spawnBurstParticles(thiefVisX, thiefVisY, 2.0f, Color(0xFFFDE047), 24, 14f, 3.0f, withRing = true)
-                                    val timeBonus = (totalSecs / 3L) + missionWave * 25L
-                                    spawnNextThiefSeamless(completedWave = missionWave, bonusPoints = timeBonus)
+                                defeated.forEach { d ->
+                                    sendThiefToPrison(d, "LUMPUI")
                                 }
                             }
                         }
@@ -1090,7 +1207,7 @@ fun Estate3DViewport(
             }
         }
 
-        // 7. OVERLAY KEKALAHAN SAJA (WASTED / TIME_UP) — TANPA OVERLAY VICTORY!
+        // 7. OVERLAY KEKALAHAN SAJA (WASTED / TIME_UP)
         if (missionOutcome == MissionOutcome.WASTED || missionOutcome == MissionOutcome.TIME_UP) {
             Box(
                 modifier = Modifier
@@ -1124,7 +1241,7 @@ fun Estate3DViewport(
                             text = if (missionOutcome == MissionOutcome.WASTED) {
                                 "Petugas kehabisan HP! Gunakan Mobil/Motor atau tingkatkan Baju Armor Premium di Toko."
                             } else {
-                                "Timer habis sebelum pencuri tumbang! Naik kendaraan untuk mengejar & upgrade senjata."
+                                "Timer habis sebelum semua pencuri dimasukkan ke Penjara Selaras! Naik kendaraan untuk mengejar."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFCBD5E1)
@@ -1212,20 +1329,18 @@ private fun VirtualJoystick3D(
 
 @Composable
 private fun MiniRadarOverlay(
-    room: PatrolRoom,
     players: List<RoomPlayer>,
     vehicles: List<WorldVehicle>,
+    thieves: List<ThiefEntity>,
+    radarVisibleThiefIds: Set<String>,
     localX: Float,
     localY: Float,
     localFacingDeg: Float,
-    thiefX: Float,
-    thiefY: Float,
-    showThiefOnRadar: Boolean,
     isPingMode: Boolean,
     onRadarTap: (Float, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Local zoomed radius around player so expanded Bumi Papan Selaras blocks & alleys stay crisp
+    val textMeasurer = rememberTextMeasurer()
     val radarZoomRadius = 0.28f
 
     Box(
@@ -1234,7 +1349,7 @@ private fun MiniRadarOverlay(
             .background(Color(0xDC080D1A))
             .border(
                 width = 2.5.dp,
-                color = if (isPingMode) Color(0xFFF59E0B) else Color(0xFF22D3EE),
+                color = if (isPingMode) Color(0xFFF59E0B) else Color(0xFFE2E8F0),
                 shape = CircleShape
             )
             .pointerInput(isPingMode, localX, localY) {
@@ -1268,21 +1383,34 @@ private fun MiniRadarOverlay(
                 drawLine(Color(0xFF334155), Offset(mapX(0.337f), mapY(0.04f)), Offset(mapX(0.337f), mapY(0.96f)), strokeWidth = 3f)
                 drawLine(Color(0xFF334155), Offset(mapX(0.662f), mapY(0.04f)), Offset(mapX(0.662f), mapY(0.96f)), strokeWidth = 3f)
 
-                // All 15 Estate Buildings & Masjid Landmark
+                // All Buildings, Masjid & Penjara Selaras
                 EstateWorld.allBuildings.forEach { b ->
                     val left = mapX(b.minX)
                     val top = mapY(b.minY)
                     val right = mapX(b.maxX)
                     val bottom = mapY(b.maxY)
                     drawRoundRect(
-                        color = if (b.isMosque) Color(0xFF10B981) else Color(0xFF1E3A5F),
+                        color = when {
+                            b.isMosque -> Color(0xFF10B981)
+                            b.isPrison -> Color(0xFFD97706)
+                            else -> Color(0xFF334155)
+                        },
                         topLeft = Offset(left, top),
                         size = Size((right - left).coerceAtLeast(3f), (bottom - top).coerceAtLeast(3f)),
                         cornerRadius = CornerRadius(if (b.isMosque) 7f else 2.5f, if (b.isMosque) 7f else 2.5f)
                     )
                 }
 
-                // Vehicles (Mobil = Cyan square, Motor = Amber dot)
+                // Ikon P untuk Penjara Selaras
+                val px = mapX(EstateWorld.prisonDoorX)
+                val py = mapY(EstateWorld.prisonDoorY)
+                drawCircle(Color(0xFFF59E0B), radius = 6.5f, center = Offset(px, py))
+                drawText(
+                    textMeasurer.measure("P", TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)),
+                    topLeft = Offset(px - 3.5f, py - 5.5f)
+                )
+
+                // Vehicles
                 vehicles.forEach { v ->
                     val vx = mapX(v.x)
                     val vy = mapY(v.y)
@@ -1298,12 +1426,15 @@ private fun MiniRadarOverlay(
                     drawCircle(Color(0xFF60A5FA), radius = 3.2f, center = Offset(mapX(p.posX.toFloat()), mapY(p.posY.toFloat())))
                 }
 
-                // Thief blip only when detected / in line-of-sight / radar pinged
-                if (room.thiefSpotted && showThiefOnRadar) {
-                    val tx = mapX(thiefX)
-                    val ty = mapY(thiefY)
-                    drawCircle(Color(0xFFEF4444), radius = 4.6f, center = Offset(tx, ty))
-                    drawCircle(Color.White, radius = 4.6f, center = Offset(tx, ty), style = Stroke(width = 1.2f))
+                // Multiple Thieves on Radar
+                thieves.forEach { t ->
+                    if (t.id in radarVisibleThiefIds) {
+                        val tx = mapX(t.x)
+                        val ty = mapY(t.y)
+                        val dotColor = if (t.goingToPrison) Color(0xFF38BDF8) else Color(0xFFEF4444)
+                        drawCircle(dotColor, radius = 4.2f, center = Offset(tx, ty))
+                        drawCircle(Color.White, radius = 4.2f, center = Offset(tx, ty), style = Stroke(width = 1.1f))
+                    }
                 }
 
                 // Player directional arrow in center
@@ -1322,12 +1453,14 @@ private fun MiniRadarOverlay(
                 )
             }
 
-            // Edge compass blip on radar rim during detection/ping windows
-            if (room.thiefSpotted && showThiefOnRadar) {
-                val dirRad = atan2((thiefY - localY).toDouble(), (thiefX - localX).toDouble()).toFloat()
+            // Edge compass blip on radar rim pointing to nearest active thief
+            val nearestActive = thieves.filter { !it.goingToPrison && it.id in radarVisibleThiefIds }
+                .minByOrNull { EstateWorld.distance(localX, localY, it.x, it.y) }
+            if (nearestActive != null) {
+                val dirRad = atan2((nearestActive.y - localY).toDouble(), (nearestActive.x - localX).toDouble()).toFloat()
                 val rimR = radiusPx * 0.88f
                 val rimPt = Offset(cx + cos(dirRad) * rimR, cy + sin(dirRad) * rimR)
-                drawCircle(Color(0xFFF97316), radius = 4.2f, center = rimPt)
+                drawCircle(Color(0xFFEF4444), radius = 4.4f, center = rimPt)
             }
         }
         Surface(
