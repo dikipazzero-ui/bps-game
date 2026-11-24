@@ -95,6 +95,8 @@ import com.example.model.QuickRadioCommand
 import com.example.model.QuickRadioPresets
 import com.example.model.RoomPlayer
 import com.example.model.UserProfile
+import androidx.compose.material.icons.filled.ViewInAr
+import com.example.ui.components.Estate3DViewport
 import com.example.ui.components.EstateMapCanvas
 import com.example.viewmodel.RoomBundle
 import com.example.viewmodel.UiState
@@ -106,9 +108,11 @@ fun PatrolHudScreen(
     currentUserId: String,
     pttActive: Boolean,
     micLevel: Float,
+    thiefStunnedUntilMs: Long,
     onExitRoom: () -> Unit,
-    onMoveToSector: (EstateSector, Float, Float) -> Unit,
+    onMoveToSector: (EstateSector, Float, Float, Float) -> Unit,
     onDropPing: (PingType, EstateSector, Float, Float) -> Unit,
+    onWeaponHitThief: () -> Unit,
     onToggleGate: (Boolean) -> Unit,
     onApprehend: () -> Unit,
     onRadarScan: () -> Unit,
@@ -135,6 +139,7 @@ fun PatrolHudScreen(
     }
 
     var isPingMode by remember { mutableStateOf(false) }
+    var is3DView by remember { mutableStateOf(true) }
     var selectedPingType by remember { mutableStateOf(PingType.SUSPECT) }
     var chatDraft by remember { mutableStateOf("") }
 
@@ -212,32 +217,56 @@ fun PatrolHudScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 MapModeControls(
+                                    is3DView = is3DView,
                                     isPingMode = isPingMode,
                                     selectedPingType = selectedPingType,
+                                    onToggle3D = { is3DView = !is3DView },
                                     onSelectMoveMode = { isPingMode = false },
                                     onSelectPingType = {
                                         isPingMode = true
                                         selectedPingType = it
                                     }
                                 )
-                                EstateMapCanvas(
-                                    room = room,
-                                    players = bundle.players,
-                                    pings = bundle.pings,
-                                    currentUserId = currentUserId,
-                                    isPingMode = isPingMode,
-                                    onMapTap = { sector, nx, ny ->
-                                        if (isPingMode) {
-                                            onDropPing(selectedPingType, sector, nx, ny)
+                                if (is3DView) {
+                                    Estate3DViewport(
+                                        room = room,
+                                        players = bundle.players,
+                                        pings = bundle.pings,
+                                        profile = profile,
+                                        currentUserId = currentUserId,
+                                        isPingMode = isPingMode,
+                                        thiefStunnedUntilMs = thiefStunnedUntilMs,
+                                        onMoveSync = onMoveToSector,
+                                        onRadarPingTap = { sec, nx, ny ->
+                                            onDropPing(selectedPingType, sec, nx, ny)
                                             isPingMode = false
-                                        } else {
-                                            onMoveToSector(sector, nx, ny)
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f)
-                                )
+                                        },
+                                        onWeaponHitThief = onWeaponHitThief,
+                                        onApprehend = onApprehend,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                    )
+                                } else {
+                                    EstateMapCanvas(
+                                        room = room,
+                                        players = bundle.players,
+                                        pings = bundle.pings,
+                                        currentUserId = currentUserId,
+                                        isPingMode = isPingMode,
+                                        onMapTap = { sector, nx, ny ->
+                                            if (isPingMode) {
+                                                onDropPing(selectedPingType, sector, nx, ny)
+                                                isPingMode = false
+                                            } else {
+                                                onMoveToSector(sector, nx, ny, 0f)
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                    )
+                                }
                                 ActionDeck(
                                     room = room,
                                     pttActive = pttActive,
@@ -278,32 +307,56 @@ fun PatrolHudScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             MapModeControls(
+                                is3DView = is3DView,
                                 isPingMode = isPingMode,
                                 selectedPingType = selectedPingType,
+                                onToggle3D = { is3DView = !is3DView },
                                 onSelectMoveMode = { isPingMode = false },
                                 onSelectPingType = {
                                     isPingMode = true
                                     selectedPingType = it
                                 }
                             )
-                            EstateMapCanvas(
-                                room = room,
-                                players = bundle.players,
-                                pings = bundle.pings,
-                                currentUserId = currentUserId,
-                                isPingMode = isPingMode,
-                                onMapTap = { sector, nx, ny ->
-                                    if (isPingMode) {
-                                        onDropPing(selectedPingType, sector, nx, ny)
+                            if (is3DView) {
+                                Estate3DViewport(
+                                    room = room,
+                                    players = bundle.players,
+                                    pings = bundle.pings,
+                                    profile = profile,
+                                    currentUserId = currentUserId,
+                                    isPingMode = isPingMode,
+                                    thiefStunnedUntilMs = thiefStunnedUntilMs,
+                                    onMoveSync = onMoveToSector,
+                                    onRadarPingTap = { sec, nx, ny ->
+                                        onDropPing(selectedPingType, sec, nx, ny)
                                         isPingMode = false
-                                    } else {
-                                        onMoveToSector(sector, nx, ny)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(0.52f)
-                            )
+                                    },
+                                    onWeaponHitThief = onWeaponHitThief,
+                                    onApprehend = onApprehend,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(0.56f)
+                                )
+                            } else {
+                                EstateMapCanvas(
+                                    room = room,
+                                    players = bundle.players,
+                                    pings = bundle.pings,
+                                    currentUserId = currentUserId,
+                                    isPingMode = isPingMode,
+                                    onMapTap = { sector, nx, ny ->
+                                        if (isPingMode) {
+                                            onDropPing(selectedPingType, sector, nx, ny)
+                                            isPingMode = false
+                                        } else {
+                                            onMoveToSector(sector, nx, ny, 0f)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(0.56f)
+                                )
+                            }
                             ActionDeck(
                                 room = room,
                                 pttActive = pttActive,
@@ -333,7 +386,7 @@ fun PatrolHudScreen(
                                 onSendRadio = onSendRadio,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .weight(0.48f)
+                                    .weight(0.44f)
                             )
                         }
                     }
@@ -499,8 +552,10 @@ private fun GandiDispatchTicker(room: PatrolRoom) {
 
 @Composable
 private fun MapModeControls(
+    is3DView: Boolean,
     isPingMode: Boolean,
     selectedPingType: PingType,
+    onToggle3D: () -> Unit,
     onSelectMoveMode: () -> Unit,
     onSelectPingType: (PingType) -> Unit
 ) {
@@ -511,6 +566,13 @@ private fun MapModeControls(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        FilterChip(
+            selected = is3DView,
+            onClick = onToggle3D,
+            label = { Text(if (is3DView) "Mode 3D" else "Peta 2D", style = MaterialTheme.typography.labelSmall) },
+            leadingIcon = { Icon(Icons.Filled.ViewInAr, null, Modifier.size(15.dp)) },
+            modifier = Modifier.testTag("toggle_3d_mode_chip")
+        )
         FilterChip(
             selected = !isPingMode,
             onClick = onSelectMoveMode,

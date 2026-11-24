@@ -59,6 +59,10 @@ service cloud.firestore {
       return (v is float || v is int) && v >= 0.0 && v <= 1.0;
     }
 
+    function isValidAngle(v) {
+      return (v is float || v is int) && v >= -720.0 && v <= 720.0;
+    }
+
     function isValidUserProfile(data) {
       return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
              data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
@@ -67,6 +71,10 @@ service cloud.firestore {
              data.equippedUniformId is string && data.equippedUniformId.size() >= 1 && data.equippedUniformId.size() <= 40 &&
              data.unlockedUniformIds is list && data.unlockedUniformIds.size() >= 1 && data.unlockedUniformIds.size() <= 20 &&
              data.unlockedUniformIds[0] is string &&
+             (!('equippedWeaponId' in data) || (data.equippedWeaponId is string && data.equippedWeaponId.size() >= 1 && data.equippedWeaponId.size() <= 40)) &&
+             (!('unlockedWeaponIds' in data) || (data.unlockedWeaponIds is list && data.unlockedWeaponIds.size() >= 1 && data.unlockedWeaponIds.size() <= 20 && data.unlockedWeaponIds[0] is string)) &&
+             (!('equippedAttributeId' in data) || (data.equippedAttributeId is string && data.equippedAttributeId.size() >= 1 && data.equippedAttributeId.size() <= 40)) &&
+             (!('unlockedAttributeIds' in data) || (data.unlockedAttributeIds is list && data.unlockedAttributeIds.size() >= 1 && data.unlockedAttributeIds.size() <= 20 && data.unlockedAttributeIds[0] is string)) &&
              data.voiceEnabled is bool &&
              data.createdAt is timestamp && data.createdAt <= request.time &&
              data.updatedAt is timestamp && data.updatedAt <= request.time;
@@ -99,9 +107,12 @@ service cloud.firestore {
              data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
              isValidPlayerRole(data.role) &&
              data.uniformId is string && data.uniformId.size() >= 1 && data.uniformId.size() <= 40 &&
+             (!('weaponId' in data) || (data.weaponId is string && data.weaponId.size() >= 1 && data.weaponId.size() <= 40)) &&
+             (!('attributeId' in data) || (data.attributeId is string && data.attributeId.size() >= 1 && data.attributeId.size() <= 40)) &&
              isValidSectorId(data.sectorId) &&
              isUnitCoord(data.posX) &&
              isUnitCoord(data.posY) &&
+             (!('facingDeg' in data) || isValidAngle(data.facingDeg)) &&
              data.pttActive is bool &&
              data.roomScore is int && data.roomScore >= 0 && data.roomScore <= 10000000 &&
              data.createdAt is timestamp && data.createdAt <= request.time &&
@@ -134,7 +145,7 @@ service cloud.firestore {
              request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids;
     }
 
-    // 1. Guard Profiles & Uniform Armory (Strictly Owner-Only)
+    // 1. Guard Profiles & Uniform/Weapon/Attribute Armory (Strictly Owner-Only)
     match /users/{userId} {
       allow get, list: if isSignedIn() && request.auth.uid == userId;
 
@@ -144,13 +155,17 @@ service cloud.firestore {
                        incoming().userId == request.auth.uid &&
                        incoming().keys().hasAll([
                          'userId', 'displayName', 'points', 'apprehensions',
-                         'equippedUniformId', 'unlockedUniformIds', 'voiceEnabled',
-                         'createdAt', 'updatedAt'
+                         'equippedUniformId', 'unlockedUniformIds',
+                         'equippedWeaponId', 'unlockedWeaponIds',
+                         'equippedAttributeId', 'unlockedAttributeIds',
+                         'voiceEnabled', 'createdAt', 'updatedAt'
                        ]) &&
                        incoming().keys().hasOnly([
                          'userId', 'displayName', 'points', 'apprehensions',
-                         'equippedUniformId', 'unlockedUniformIds', 'voiceEnabled',
-                         'createdAt', 'updatedAt'
+                         'equippedUniformId', 'unlockedUniformIds',
+                         'equippedWeaponId', 'unlockedWeaponIds',
+                         'equippedAttributeId', 'unlockedAttributeIds',
+                         'voiceEnabled', 'createdAt', 'updatedAt'
                        ]) &&
                        isValidUserProfile(incoming());
 
@@ -162,7 +177,10 @@ service cloud.firestore {
                        isValidUserProfile(incoming()) &&
                        incoming().diff(existing()).affectedKeys().hasOnly([
                          'displayName', 'points', 'apprehensions',
-                         'equippedUniformId', 'unlockedUniformIds', 'voiceEnabled', 'updatedAt'
+                         'equippedUniformId', 'unlockedUniformIds',
+                         'equippedWeaponId', 'unlockedWeaponIds',
+                         'equippedAttributeId', 'unlockedAttributeIds',
+                         'voiceEnabled', 'updatedAt'
                        ]);
 
       allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
@@ -225,7 +243,7 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && isValidId(roomId) && request.auth.uid == existing().hostUid;
 
-      // 2a. Live Player Tokens inside Room
+      // 2a. Live 3D Player Tokens inside Room
       match /players/{playerUid} {
         allow get, list: if isRoomMember(roomId);
 
@@ -238,8 +256,9 @@ service cloud.firestore {
                            'posX', 'posY', 'pttActive', 'roomScore', 'createdAt', 'updatedAt'
                          ]) &&
                          incoming().keys().hasOnly([
-                           'userId', 'displayName', 'role', 'uniformId', 'sectorId',
-                           'posX', 'posY', 'pttActive', 'roomScore', 'createdAt', 'updatedAt'
+                           'userId', 'displayName', 'role', 'uniformId', 'weaponId', 'attributeId',
+                           'sectorId', 'posX', 'posY', 'facingDeg', 'pttActive', 'roomScore',
+                           'createdAt', 'updatedAt'
                          ]) &&
                          isValidRoomPlayer(incoming());
 
@@ -250,8 +269,8 @@ service cloud.firestore {
                          incoming().createdAt == existing().createdAt &&
                          isValidRoomPlayer(incoming()) &&
                          incoming().diff(existing()).affectedKeys().hasOnly([
-                           'displayName', 'role', 'uniformId', 'sectorId',
-                           'posX', 'posY', 'pttActive', 'roomScore', 'updatedAt'
+                           'displayName', 'role', 'uniformId', 'weaponId', 'attributeId',
+                           'sectorId', 'posX', 'posY', 'facingDeg', 'pttActive', 'roomScore', 'updatedAt'
                          ]);
 
         allow delete: if isRoomMember(roomId) && isValidId(playerUid) && request.auth.uid == playerUid;

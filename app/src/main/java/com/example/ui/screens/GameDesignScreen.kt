@@ -84,14 +84,13 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.SportsEsports,
-                    title = "1. Alur Permainan Utama",
+                    title = "1. Alur Permainan 3D Utama",
                     bullets = listOf(
                         "Masuk ke Ruang Patroli Kompleks (sendiri atau regu via Kode Ruang 6 karakter).",
-                        "Patroli Blok A–D, jalanan kompleks, dan taman; pantau radar & laporan jalanan dari GANDI.",
-                        "Koordinasi dengan rekan regu via Ping Peta, Radio Cepat, Suara PTT, dan Obrolan Teks.",
-                        "Kunci Gerbang Utama Utara atau Portal Servis Selatan untuk memotong rute kabur penyusup.",
-                        "Kejar dan TANGKAP penyusup untuk meraih Poin Patroli (+100 dasar, +50 bonus Gerbang Terkunci, +25 bonus Seragam Prestise).",
-                        "Belanjakan poin di Gudang Seragam untuk membuka & memakai 6 seragam penjaga."
+                        "Kendalikan karakter Penjaga 3D secara bebas menggunakan Joystick Analog di kiri layar & geser layar untuk memutar kamera 3D!",
+                        "Gunakan tombol LARI (memakai Stamina) dan tombol AKSI untuk menembakkan/mengayunkan senjata yang dipegang guna melumpuhkan penyusup.",
+                        "Kunci Gerbang Utama Utara atau Portal Servis Selatan untuk memotong rute kabur penyusup, lalu tekan TANGKAP!",
+                        "Belanjakan poin di Gudang 3D untuk membeli Baju Seragam, Senjata Dipegang, dan Atribut Kebutuhan patroli."
                     )
                 )
             }
@@ -123,9 +122,9 @@ fun GameDesignScreen(
                     icon = Icons.Filled.Forum,
                     title = "4. Sistem Komunikasi Multiplayer",
                     bullets = listOf(
-                        "Radio Push-to-Talk (PTT): Menangkap amplitudo mikrofon (AudioRecord) dan menyalakan cincin sinyal sian di peta.",
+                        "Radio Push-to-Talk (PTT): Menangkap amplitudo mikrofon (AudioRecord) dan menyalakan cincin sinyal sian di dunia 3D.",
                         "Perintah Radio Cepat: Tombol 1-ketuk (Kepung Gerbang U, Butuh Bantuan, Maling Terlihat, Kunci Portal Selatan) dengan tag sektor otomatis.",
-                        "Ping Lokasi: Ketuk peta dalam Mode Ping untuk memasang suar PENYUSUP, BUTUH BANTUAN, TUTUP GERBANG, atau AMAN.",
+                        "Ping Lokasi: Ketuk Mini-Radar dalam Mode Ping untuk memasang pilar suar 3D PENYUSUP, BUTUH BANTUAN, TUTUP GERBANG, atau AMAN.",
                         "Obrolan Regu Real-Time: Aliran pesan Firestore sinkron langsung dengan laporan GANDI."
                     )
                 )
@@ -134,11 +133,11 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.Checkroom,
-                    title = "5. Skor & Koleksi Seragam",
+                    title = "5. Gudang 3D: Baju, Senjata & Atribut",
                     bullets = listOf(
-                        "Seragam Kadet Biru (0 poin) -> Penjaga Siber-Neon (250 poin) -> Marsekal Gerbang Merah (500 poin).",
-                        "Pengintai Burung Hantu (800 poin) -> Jaket Emas Favorit GANDI (1.200 poin) -> Panglima Agung Kompleks (2.000 poin).",
-                        "Seragam yang dipakai langsung mengubah warna ikon, bingkai aura, dan pangkat Anda di peta multiplayer."
+                        "Baju & Seragam (6 pilihan): Mengubah tampilan pakaian, pelindung bahu, jubah karakter 3D & bonus poin tangkap.",
+                        "Senjata Dipegang (5 pilihan): Tongkat Patroli, Senter Kejut Pro, Pistol Bius Taser X2, Peluncur Jaring, hingga Senapan Pulsa Siber yang terlihat di tangan 3D!",
+                        "Atribut Kebutuhan (5 pilihan): Sabuk Utilitas, Sepatu Turbo (lari cepat), Rompi Kevlar (hemat stamina), Helm NVG (terangkan malam 3D), dan Drone Mini (perluas radius tangkap)."
                     )
                 )
             }

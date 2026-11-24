@@ -62,9 +62,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.R
+import com.example.model.AttributeCatalog
 import com.example.model.PatrolRoom
 import com.example.model.UniformCatalog
 import com.example.model.UserProfile
+import com.example.model.WeaponCatalog
 import com.example.viewmodel.UiState
 
 @Composable
@@ -125,6 +127,8 @@ fun LobbyScreen(
                     is UiState.Success -> {
                         val profile = profileState.data
                         val uniform = UniformCatalog.byId(profile.equippedUniformId)
+                        val weapon = WeaponCatalog.byId(profile.equippedWeaponId)
+                        val attribute = AttributeCatalog.byId(profile.equippedAttributeId)
                         Card(
                             shape = RoundedCornerShape(22.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -135,7 +139,7 @@ fun LobbyScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(126.dp)
+                                        .height(132.dp)
                                 ) {
                                     Image(
                                         painter = painterResource(id = R.drawable.img_estate_banner),
@@ -197,6 +201,11 @@ fun LobbyScreen(
                                                 text = "${uniform.rankTitle} • ${uniform.name}",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = uniform.trimColor
+                                            )
+                                            Text(
+                                                text = "Senjata: ${weapon.name} • ${attribute.name}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color(0xFF94A3B8)
                                             )
                                         }
                                     }

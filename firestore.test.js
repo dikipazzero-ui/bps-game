@@ -25,6 +25,10 @@ function validUserPayload(uid, now) {
     apprehensions: 2,
     equippedUniformId: "rookie_cadet",
     unlockedUniformIds: ["rookie_cadet"],
+    equippedWeaponId: "baton_standard",
+    unlockedWeaponIds: ["baton_standard"],
+    equippedAttributeId: "utility_belt",
+    unlockedAttributeIds: ["utility_belt"],
     voiceEnabled: true,
     createdAt: now,
     updatedAt: now,
@@ -60,9 +64,12 @@ function validPlayerPayload(uid, now) {
     displayName: "Sgt. Alice",
     role: "GUARD",
     uniformId: "rookie_cadet",
+    weaponId: "baton_standard",
+    attributeId: "utility_belt",
     sectorId: "GATE_NORTH",
     posX: 0.5,
     posY: 0.12,
+    facingDeg: 0.0,
     pttActive: false,
     roomScore: 0,
     createdAt: now,
@@ -112,13 +119,17 @@ test("Users collection: owner create, partial update, cross-user denial, and gho
     aliceDb.collection("users").doc(ALICE_UID).set(validUserPayload(ALICE_UID, now))
   );
 
-  // Partial update: buy uniform & earn points
+  // Partial update: buy uniform, weapon, attribute & earn points
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
       points: 350,
       apprehensions: 3,
       unlockedUniformIds: ["rookie_cadet", "neon_warden"],
       equippedUniformId: "neon_warden",
+      unlockedWeaponIds: ["baton_standard", "stun_pistol"],
+      equippedWeaponId: "stun_pistol",
+      unlockedAttributeIds: ["utility_belt", "speed_boots"],
+      equippedAttributeId: "speed_boots",
       updatedAt: new Date(Date.now() - 500),
     })
   );

@@ -2,7 +2,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Authenticated guard profile storing career patrol points, apprehensions, and unlocked uniforms.",
+      "description": "Authenticated guard profile storing career patrol points, apprehensions, uniforms, held weapons, and tactical attributes.",
       "type": "object",
       "properties": {
         "userId": {
@@ -29,6 +29,22 @@
           "type": "array",
           "description": "Bounded list of unlocked uniform identifiers."
         },
+        "equippedWeaponId": {
+          "type": "string",
+          "description": "Currently equipped held weapon identifier."
+        },
+        "unlockedWeaponIds": {
+          "type": "array",
+          "description": "Bounded list of unlocked held weapon identifiers."
+        },
+        "equippedAttributeId": {
+          "type": "string",
+          "description": "Currently equipped tactical attribute identifier."
+        },
+        "unlockedAttributeIds": {
+          "type": "array",
+          "description": "Bounded list of unlocked tactical attribute identifiers."
+        },
         "voiceEnabled": {
           "type": "boolean",
           "description": "Whether GANDI Text-to-Speech radio voice is enabled."
@@ -51,6 +67,10 @@
         "apprehensions",
         "equippedUniformId",
         "unlockedUniformIds",
+        "equippedWeaponId",
+        "unlockedWeaponIds",
+        "equippedAttributeId",
+        "unlockedAttributeIds",
         "voiceEnabled",
         "createdAt",
         "updatedAt"
@@ -163,7 +183,7 @@
     },
     "RoomPlayer": {
       "title": "RoomPlayer",
-      "description": "Live position, role, equipped uniform, and PTT voice status for a player inside a room.",
+      "description": "Live 3D position, facing angle, role, equipped uniform/weapon/attribute, and PTT voice status for a player inside a room.",
       "type": "object",
       "properties": {
         "userId": {
@@ -183,6 +203,14 @@
           "type": "string",
           "description": "Equipped uniform ID."
         },
+        "weaponId": {
+          "type": "string",
+          "description": "Equipped held weapon ID."
+        },
+        "attributeId": {
+          "type": "string",
+          "description": "Equipped tactical attribute ID."
+        },
         "sectorId": {
           "type": "string",
           "description": "Current sector ID on the map."
@@ -194,6 +222,10 @@
         "posY": {
           "type": "number",
           "description": "Normalized Y coordinate (0..1)."
+        },
+        "facingDeg": {
+          "type": "number",
+          "description": "3D facing yaw angle in degrees (-360..360)."
         },
         "pttActive": {
           "type": "boolean",
@@ -326,7 +358,7 @@
       "schema": {
         "$ref": "#/entities/UserProfile"
       },
-      "description": "Authenticated guard profile, patrol points, and unlocked uniforms."
+      "description": "Authenticated guard profile, patrol points, unlocked uniforms, weapons, and attributes."
     },
     "/rooms/{roomId}": {
       "schema": {
@@ -338,7 +370,7 @@
       "schema": {
         "$ref": "#/entities/RoomPlayer"
       },
-      "description": "Real-time positions, roles, uniforms, and PTT state of players in a room."
+      "description": "Real-time 3D positions, roles, uniforms, weapons, attributes, and PTT state of players in a room."
     },
     "/rooms/{roomId}/pings/{pingId}": {
       "schema": {

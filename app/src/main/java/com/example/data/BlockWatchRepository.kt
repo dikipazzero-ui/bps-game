@@ -3,6 +3,7 @@ package com.example.data
 import android.content.Context
 import com.example.R
 import com.example.engine.GandiDispatcher
+import com.example.model.AttributeCatalog
 import com.example.model.CommsChannel
 import com.example.model.CommsMessage
 import com.example.model.EstateSector
@@ -17,6 +18,7 @@ import com.example.model.RoomStatus
 import com.example.model.TacticalPing
 import com.example.model.UniformCatalog
 import com.example.model.UserProfile
+import com.example.model.WeaponCatalog
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -179,6 +181,21 @@ class BlockWatchRepository(
             val docRef = db.collection("users").document(uid)
             val snap = docRef.get().await()
             if (snap.exists()) {
+                val rawData = snap.data
+                if (rawData != null && (!rawData.containsKey("equippedWeaponId") || !rawData.containsKey("equippedAttributeId"))) {
+                    docRef.update(
+                        mapOf(
+                            "equippedWeaponId" to "baton_standard",
+                            "unlockedWeaponIds" to listOf("baton_standard"),
+                            "equippedAttributeId" to "utility_belt",
+                            "unlockedAttributeIds" to listOf("utility_belt"),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    ).await()
+                    val migrated = docRef.get().await()
+                        .toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                    if (migrated != null) return Result.success(migrated)
+                }
                 val existing = snap.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
                 if (existing != null) return Result.success(existing)
             }
@@ -190,6 +207,10 @@ class BlockWatchRepository(
                 "apprehensions" to 0L,
                 "equippedUniformId" to "rookie_cadet",
                 "unlockedUniformIds" to listOf("rookie_cadet"),
+                "equippedWeaponId" to "baton_standard",
+                "unlockedWeaponIds" to listOf("baton_standard"),
+                "equippedAttributeId" to "utility_belt",
+                "unlockedAttributeIds" to listOf("utility_belt"),
                 "voiceEnabled" to true,
                 "createdAt" to FieldValue.serverTimestamp(),
                 "updatedAt" to FieldValue.serverTimestamp()
@@ -253,9 +274,12 @@ class BlockWatchRepository(
                 "displayName" to profile.displayName.take(40),
                 "role" to PlayerRole.GUARD.name,
                 "uniformId" to profile.equippedUniformId,
+                "weaponId" to profile.equippedWeaponId,
+                "attributeId" to profile.equippedAttributeId,
                 "sectorId" to startSector.id,
                 "posX" to startSector.normX.toDouble(),
                 "posY" to startSector.normY.toDouble(),
+                "facingDeg" to 180.0,
                 "pttActive" to false,
                 "roomScore" to 0L,
                 "createdAt" to FieldValue.serverTimestamp(),
@@ -318,9 +342,12 @@ class BlockWatchRepository(
                         "displayName" to profile.displayName.take(40),
                         "role" to PlayerRole.GUARD.name,
                         "uniformId" to profile.equippedUniformId,
+                        "weaponId" to profile.equippedWeaponId,
+                        "attributeId" to profile.equippedAttributeId,
                         "sectorId" to startSector.id,
                         "posX" to startSector.normX.toDouble(),
                         "posY" to startSector.normY.toDouble(),
+                        "facingDeg" to 180.0,
                         "pttActive" to false,
                         "roomScore" to 0L,
                         "createdAt" to FieldValue.serverTimestamp(),
@@ -331,6 +358,8 @@ class BlockWatchRepository(
                 playerRef.update(
                     mapOf(
                         "uniformId" to profile.equippedUniformId,
+                        "weaponId" to profile.equippedWeaponId,
+                        "attributeId" to profile.equippedAttributeId,
                         "displayName" to profile.displayName.take(40),
                         "updatedAt" to FieldValue.serverTimestamp()
                     )
@@ -345,7 +374,13 @@ class BlockWatchRepository(
         }
     }
 
-    suspend fun movePlayer(roomId: String, sector: EstateSector, normX: Float, normY: Float): Result<Unit> {
+    suspend fun movePlayer(
+        roomId: String,
+        sector: EstateSector,
+        normX: Float,
+        normY: Float,
+        facingDeg: Float = 0f
+    ): Result<Unit> {
         var path = "rooms/$roomId/players"
         return try {
             val uid = requireUserId()
@@ -357,6 +392,7 @@ class BlockWatchRepository(
                         "sectorId" to sector.id,
                         "posX" to normX.coerceIn(0.05f, 0.95f).toDouble(),
                         "posY" to normY.coerceIn(0.05f, 0.95f).toDouble(),
+                        "facingDeg" to facingDeg.coerceIn(-360f, 360f).toDouble(),
                         "updatedAt" to FieldValue.serverTimestamp()
                     )
                 ).await()
@@ -558,7 +594,8 @@ class BlockWatchRepository(
             val sector = EstateWorld.byId(room.activeThiefSectorId)
             val gateBonus = if (room.northGateStatus == GateStatus.LOCKED.name || room.southGateStatus == GateStatus.LOCKED.name) 50L else 0L
             val uniformBonus = if (profile.equippedUniformId == "gandi_fanclub" || profile.equippedUniformId == "royal_sentinel") 25L else 0L
-            val earned = 100L + gateBonus + uniformBonus
+            val weaponBonus = WeaponCatalog.byId(profile.equippedWeaponId).bonusPoints
+            val earned = 100L + gateBonus + uniformBonus + weaponBonus
 
             // Respawn next intruder at a different sector
             val candidates = EstateWorld.sectors.filter { it.id != sector.id }
@@ -701,6 +738,78 @@ class BlockWatchRepository(
             db.collection("users").document(uid).update(
                 mapOf(
                     "equippedUniformId" to uniformId.take(40),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun purchaseAndEquipWeapon(weaponId: String, profile: UserProfile): Result<Unit> {
+        var path = "users/unknown"
+        return try {
+            val uid = requireUserId()
+            path = "users/$uid"
+            val item = WeaponCatalog.byId(weaponId)
+            if (weaponId in profile.unlockedWeaponIds) {
+                db.collection("users").document(uid).update(
+                    mapOf(
+                        "equippedWeaponId" to weaponId.take(40),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+                return Result.success(Unit)
+            }
+            if (profile.points < item.price) {
+                return Result.failure(IllegalStateException("Butuh ${item.price - profile.points} Poin Patroli lagi."))
+            }
+            val updatedUnlocked = (profile.unlockedWeaponIds + weaponId).distinct().take(20)
+            db.collection("users").document(uid).update(
+                mapOf(
+                    "points" to (profile.points - item.price),
+                    "unlockedWeaponIds" to updatedUnlocked,
+                    "equippedWeaponId" to weaponId,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun purchaseAndEquipAttribute(attributeId: String, profile: UserProfile): Result<Unit> {
+        var path = "users/unknown"
+        return try {
+            val uid = requireUserId()
+            path = "users/$uid"
+            val item = AttributeCatalog.byId(attributeId)
+            if (attributeId in profile.unlockedAttributeIds) {
+                db.collection("users").document(uid).update(
+                    mapOf(
+                        "equippedAttributeId" to attributeId.take(40),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+                return Result.success(Unit)
+            }
+            if (profile.points < item.price) {
+                return Result.failure(IllegalStateException("Butuh ${item.price - profile.points} Poin Patroli lagi."))
+            }
+            val updatedUnlocked = (profile.unlockedAttributeIds + attributeId).distinct().take(20)
+            db.collection("users").document(uid).update(
+                mapOf(
+                    "points" to (profile.points - item.price),
+                    "unlockedAttributeIds" to updatedUnlocked,
+                    "equippedAttributeId" to attributeId,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             ).await()

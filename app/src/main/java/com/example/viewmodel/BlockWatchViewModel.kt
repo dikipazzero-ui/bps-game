@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.BlockWatchRepository
 import com.example.engine.GandiVoiceSpeaker
 import com.example.engine.PttAudioMonitor
+import com.example.model.AttributeCatalog
 import com.example.model.CommsChannel
 import com.example.model.CommsMessage
 import com.example.model.EstateSector
@@ -18,6 +19,7 @@ import com.example.model.QuickRadioCommand
 import com.example.model.RoomPlayer
 import com.example.model.TacticalPing
 import com.example.model.UserProfile
+import com.example.model.WeaponCatalog
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -81,6 +83,9 @@ class BlockWatchViewModel(
 
     private var thiefLoopJob: Job? = null
     private var lastSpokenLine: String = ""
+
+    private val _thiefStunnedUntilMs = MutableStateFlow(0L)
+    val thiefStunnedUntilMs: StateFlow<Long> = _thiefStunnedUntilMs.asStateFlow()
 
     val profileState: StateFlow<UiState<UserProfile>> = repository.observeUserProfile(currentUserId)
         .map<UserProfile?, UiState<UserProfile>> { profile ->
@@ -246,7 +251,8 @@ class BlockWatchViewModel(
             while (isActive) {
                 val bundle = (roomBundleState.value as? UiState.Success)?.data
                 val room = bundle?.room
-                if (room != null && room.id == roomId && room.hostUid == currentUserId) {
+                val nowMs = System.currentTimeMillis()
+                if (room != null && room.id == roomId && room.hostUid == currentUserId && nowMs >= _thiefStunnedUntilMs.value) {
                     repository.advanceSimulatedThief(roomId, room)
                 }
                 delay(9000L)
@@ -268,12 +274,25 @@ class BlockWatchViewModel(
         }
     }
 
-    fun moveToSector(sector: EstateSector, normX: Float = sector.normX, normY: Float = sector.normY) {
+    fun moveToSector(
+        sector: EstateSector,
+        normX: Float = sector.normX,
+        normY: Float = sector.normY,
+        facingDeg: Float = 0f
+    ) {
         val roomId = _activeRoomId.value ?: return
         viewModelScope.launch {
-            repository.movePlayer(roomId, sector, normX, normY)
+            repository.movePlayer(roomId, sector, normX, normY, facingDeg)
                 .onFailure { _statusBanner.value = it.localizedMessage }
         }
+    }
+
+    fun onWeaponHitThief() {
+        val profile = (profileState.value as? UiState.Success)?.data ?: return
+        val weapon = WeaponCatalog.byId(profile.equippedWeaponId)
+        val durationMs = (weapon.stunSeconds * 1000L).toLong()
+        _thiefStunnedUntilMs.value = System.currentTimeMillis() + durationMs
+        _statusBanner.value = "Kena! ${weapon.name} melumpuhkan penyusup (${weapon.stunSeconds.toInt()} dtk) — segera TANGKAP!"
     }
 
     fun toggleGate(isNorthGate: Boolean) {
@@ -294,13 +313,15 @@ class BlockWatchViewModel(
         val room = bundle.room ?: return
         val profile = (profileState.value as? UiState.Success)?.data ?: return
         val me = bundle.players.firstOrNull { it.userId == currentUserId }
+        val attr = AttributeCatalog.byId(profile.equippedAttributeId)
+        val catchRange = 0.24f + attr.catchRadiusBonus
 
         if (me != null) {
             val dist = EstateWorld.distance(
                 me.posX.toFloat(), me.posY.toFloat(),
                 room.activeThiefX.toFloat(), room.activeThiefY.toFloat()
             )
-            if (dist > 0.24f && me.sectorId != room.activeThiefSectorId) {
+            if (dist > catchRange && me.sectorId != room.activeThiefSectorId) {
                 val thiefSector = EstateWorld.byId(room.activeThiefSectorId)
                 _statusBanner.value = "Dekati ${thiefSector.name} (${thiefSector.streetName}) untuk menangkap!"
                 return
@@ -310,6 +331,7 @@ class BlockWatchViewModel(
         viewModelScope.launch {
             repository.apprehendThief(roomId, room, profile)
                 .onSuccess { pts ->
+                    _thiefStunnedUntilMs.value = 0L
                     _statusBanner.value = "Penyusup tertangkap! +$pts Poin Patroli"
                 }
                 .onFailure {
@@ -398,10 +420,42 @@ class BlockWatchViewModel(
             _isBusy.value = true
             repository.purchaseAndEquipUniform(uniformId, profile)
                 .onSuccess {
-                    _statusBanner.value = "Seragam dipakai untuk patroli!"
+                    _statusBanner.value = "Baju seragam dipakai untuk patroli 3D!"
                 }
                 .onFailure {
                     _statusBanner.value = it.localizedMessage ?: "Pembelian gagal"
+                }
+            _isBusy.value = false
+        }
+    }
+
+    fun purchaseOrEquipWeapon(weaponId: String) {
+        val profile = (profileState.value as? UiState.Success)?.data ?: return
+        viewModelScope.launch {
+            _isBusy.value = true
+            repository.purchaseAndEquipWeapon(weaponId, profile)
+                .onSuccess {
+                    val weapon = WeaponCatalog.byId(weaponId)
+                    _statusBanner.value = "${weapon.name} dipegang di tangan!"
+                }
+                .onFailure {
+                    _statusBanner.value = it.localizedMessage ?: "Pembelian senjata gagal"
+                }
+            _isBusy.value = false
+        }
+    }
+
+    fun purchaseOrEquipAttribute(attributeId: String) {
+        val profile = (profileState.value as? UiState.Success)?.data ?: return
+        viewModelScope.launch {
+            _isBusy.value = true
+            repository.purchaseAndEquipAttribute(attributeId, profile)
+                .onSuccess {
+                    val attr = AttributeCatalog.byId(attributeId)
+                    _statusBanner.value = "${attr.name} aktif memenuhi kebutuhan patroli!"
+                }
+                .onFailure {
+                    _statusBanner.value = it.localizedMessage ?: "Pembelian atribut gagal"
                 }
             _isBusy.value = false
         }

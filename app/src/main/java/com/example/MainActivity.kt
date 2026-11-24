@@ -138,6 +138,7 @@ fun BlockWatchRoot(
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val pttActive by viewModel.pttActive.collectAsStateWithLifecycle()
     val micLevel by viewModel.micLevel.collectAsStateWithLifecycle()
+    val thiefStunnedUntilMs by viewModel.thiefStunnedUntilMs.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(statusBanner) {
@@ -156,9 +157,11 @@ fun BlockWatchRoot(
                 currentUserId = currentUserId,
                 pttActive = pttActive,
                 micLevel = micLevel,
+                thiefStunnedUntilMs = thiefStunnedUntilMs,
                 onExitRoom = { viewModel.exitRoomToLobby() },
-                onMoveToSector = { sector, nx, ny -> viewModel.moveToSector(sector, nx, ny) },
+                onMoveToSector = { sector, nx, ny, facing -> viewModel.moveToSector(sector, nx, ny, facing) },
                 onDropPing = { type, sector, nx, ny -> viewModel.dropTacticalPing(type, sector, nx, ny) },
+                onWeaponHitThief = { viewModel.onWeaponHitThief() },
                 onToggleGate = { isNorth -> viewModel.toggleGate(isNorth) },
                 onApprehend = { viewModel.attemptApprehend() },
                 onRadarScan = { viewModel.triggerManualRadarScan() },
@@ -291,7 +294,9 @@ fun BlockWatchRoot(
                         AppScreen.SHOP -> ShopScreen(
                             profileState = profileState,
                             isBusy = isBusy,
-                            onPurchaseOrEquip = { uniformId -> viewModel.purchaseOrEquipUniform(uniformId) },
+                            onPurchaseOrEquipUniform = { uniformId -> viewModel.purchaseOrEquipUniform(uniformId) },
+                            onPurchaseOrEquipWeapon = { weaponId -> viewModel.purchaseOrEquipWeapon(weaponId) },
+                            onPurchaseOrEquipAttribute = { attrId -> viewModel.purchaseOrEquipAttribute(attrId) },
                             onBack = { viewModel.navigateTo(AppScreen.LOBBY) }
                         )
                         AppScreen.FIELD_GUIDE -> GameDesignScreen(
