@@ -72,18 +72,22 @@ enum class CommsChannel {
     }
 }
 
+enum class MissionOutcome {
+    ACTIVE, VICTORY, WASTED, TIME_UP
+}
+
 @Keep
 @IgnoreExtraProperties
 data class UserProfile(
     @DocumentId val id: String = "",
     val userId: String = "",
-    val displayName: String = "Kadet Penjaga",
+    val displayName: String = "Petugas Selaras",
     val points: Long = 100L,
     val apprehensions: Long = 0L,
     val equippedUniformId: String = "rookie_cadet",
     val unlockedUniformIds: List<String> = listOf("rookie_cadet"),
-    val equippedWeaponId: String = "baton_standard",
-    val unlockedWeaponIds: List<String> = listOf("baton_standard"),
+    val equippedWeaponId: String = "pistol_9mm",
+    val unlockedWeaponIds: List<String> = listOf("pistol_9mm"),
     val equippedAttributeId: String = "utility_belt",
     val unlockedAttributeIds: List<String> = listOf("utility_belt"),
     val voiceEnabled: Boolean = true,
@@ -96,7 +100,7 @@ data class UserProfile(
 data class PatrolRoom(
     @DocumentId val id: String = "",
     val roomCode: String = "",
-    val title: String = "Patroli Malam Emerald Crest",
+    val title: String = "Patroli Bumi Papan Selaras",
     val hostUid: String = "",
     val status: String = RoomStatus.ACTIVE.name,
     val memberUids: List<String> = emptyList(),
@@ -104,13 +108,13 @@ data class PatrolRoom(
     val southGateStatus: String = GateStatus.OPEN.name,
     val scoreTotal: Long = 0L,
     val apprehensionCount: Long = 0L,
-    val activeThiefSectorId: String = "BLOCK_B",
-    val activeThiefStreet: String = "Jl. Oakridge Boulevard",
-    val activeThiefX: Double = 0.78,
-    val activeThiefY: Double = 0.24,
+    val activeThiefSectorId: String = "BLOK_CEMARA",
+    val activeThiefStreet: String = "Jl. Cemara Indah",
+    val activeThiefX: Double = 0.18,
+    val activeThiefY: Double = 0.50,
     val thiefSpotted: Boolean = true,
-    val gandiLastLine: String = "GANDI siap bertugas! Pastikan senter menyala dan pantau terus Jl. Oakridge!",
-    val gandiMood: String = GandiMood.CHATTY.name,
+    val gandiLastLine: String = "GANDI // Siaga! Penyusup terdeteksi masuk kawasan Bumi Papan Selaras dekat Blok Cemara!",
+    val gandiMood: String = GandiMood.ALERT.name,
     @ServerTimestamp val createdAt: Timestamp? = null,
     @ServerTimestamp val updatedAt: Timestamp? = null
 )
@@ -123,11 +127,11 @@ data class RoomPlayer(
     val displayName: String = "Unit Patroli",
     val role: String = PlayerRole.GUARD.name,
     val uniformId: String = "rookie_cadet",
-    val weaponId: String = "baton_standard",
+    val weaponId: String = "pistol_9mm",
     val attributeId: String = "utility_belt",
-    val sectorId: String = "GATE_NORTH",
+    val sectorId: String = "AREA_MASJID",
     val posX: Double = 0.50,
-    val posY: Double = 0.10,
+    val posY: Double = 0.60,
     val facingDeg: Double = 0.0,
     val pttActive: Boolean = false,
     val roomScore: Long = 0L,
@@ -142,8 +146,8 @@ data class TacticalPing(
     val senderId: String = "",
     val senderName: String = "Unit",
     val pingType: String = PingType.SUSPECT.name,
-    val sectorId: String = "CROSSWALK",
-    val streetName: String = "Bundaran Utama",
+    val sectorId: String = "AREA_MASJID",
+    val streetName: String = "Bundaran Masjid Selaras",
     val posX: Double = 0.50,
     val posY: Double = 0.50,
     @ServerTimestamp val createdAt: Timestamp? = null
@@ -161,7 +165,7 @@ data class CommsMessage(
     @ServerTimestamp val createdAt: Timestamp? = null
 )
 
-enum class SectorKind { GATE, BLOCK, PARK, INTERSECTION }
+enum class SectorKind { GATE, BLOCK, LANDMARK }
 
 data class EstateSector(
     val id: String,
@@ -185,153 +189,194 @@ data class BuildingFootprint(
     val height3D: Float,
     val roofColor: Color,
     val wallColor: Color,
-    val accentColor: Color
+    val accentColor: Color,
+    val isMosque: Boolean = false
 )
 
 object EstateWorld {
     val buildings: List<BuildingFootprint> = listOf(
         BuildingFootprint(
-            id = "BLOK_A",
-            label = "BLOK A • AMBERWOOD",
-            minX = 0.17f, minY = 0.21f, maxX = 0.34f, maxY = 0.31f,
-            height3D = 14f,
-            roofColor = Color(0xFF1E3A5F),
-            wallColor = Color(0xFF132640),
+            id = "BLOK_KRISAN",
+            label = "BLOK KRISAN",
+            minX = 0.14f, minY = 0.14f, maxX = 0.30f, maxY = 0.25f,
+            height3D = 12f,
+            roofColor = Color(0xFF283B5B),
+            wallColor = Color(0xFF17253B),
             accentColor = Color(0xFF38BDF8)
         ),
         BuildingFootprint(
-            id = "BLOK_B",
-            label = "BLOK B • VILA CEDAR",
-            minX = 0.66f, minY = 0.21f, maxX = 0.83f, maxY = 0.31f,
-            height3D = 11f,
-            roofColor = Color(0xFF283B5B),
-            wallColor = Color(0xFF17253B),
+            id = "BLOK_CEMPAKA",
+            label = "BLOK CEMPAKA",
+            minX = 0.70f, minY = 0.14f, maxX = 0.86f, maxY = 0.25f,
+            height3D = 13f,
+            roofColor = Color(0xFF334155),
+            wallColor = Color(0xFF1E293B),
             accentColor = Color(0xFFF59E0B)
         ),
         BuildingFootprint(
-            id = "BLOK_C",
-            label = "BLOK C • HORIZON",
-            minX = 0.17f, minY = 0.68f, maxX = 0.34f, maxY = 0.78f,
-            height3D = 13f,
+            id = "BLOK_CEMARA",
+            label = "BLOK CEMARA",
+            minX = 0.11f, minY = 0.43f, maxX = 0.25f, maxY = 0.56f,
+            height3D = 14f,
             roofColor = Color(0xFF1E3A5F),
-            wallColor = Color(0xFF132640),
+            wallColor = Color(0xFF122640),
+            accentColor = Color(0xFF10B981)
+        ),
+        BuildingFootprint(
+            id = "AREA_MASJID",
+            label = "MASJID AGUNG SELARAS",
+            minX = 0.44f, minY = 0.44f, maxX = 0.56f, maxY = 0.56f,
+            height3D = 10f,
+            roofColor = Color(0xFF047857),
+            wallColor = Color(0xFFE2E8F0),
+            accentColor = Color(0xFFFDE047),
+            isMosque = true
+        ),
+        BuildingFootprint(
+            id = "BLOK_AKASIA",
+            label = "BLOK AKASIA",
+            minX = 0.75f, minY = 0.43f, maxX = 0.89f, maxY = 0.56f,
+            height3D = 15f,
+            roofColor = Color(0xFF263859),
+            wallColor = Color(0xFF162338),
             accentColor = Color(0xFF22D3EE)
         ),
         BuildingFootprint(
-            id = "BLOK_D",
-            label = "BLOK D • MAPLE",
-            minX = 0.66f, minY = 0.68f, maxX = 0.83f, maxY = 0.78f,
+            id = "BLOK_CAMELIA",
+            label = "BLOK CAMELIA",
+            minX = 0.14f, minY = 0.75f, maxX = 0.30f, maxY = 0.86f,
+            height3D = 11f,
+            roofColor = Color(0xFF3B2F4A),
+            wallColor = Color(0xFF241B30),
+            accentColor = Color(0xFFF472B6)
+        ),
+        BuildingFootprint(
+            id = "BLOK_FLAMBOYAN",
+            label = "BLOK FLAMBOYAN",
+            minX = 0.70f, minY = 0.75f, maxX = 0.86f, maxY = 0.86f,
             height3D = 16f,
-            roofColor = Color(0xFF263859),
-            wallColor = Color(0xFF162338),
-            accentColor = Color(0xFFA855F7)
+            roofColor = Color(0xFF3A2A2E),
+            wallColor = Color(0xFF251A1D),
+            accentColor = Color(0xFFFB7185)
         )
     )
 
     val sectors: List<EstateSector> = listOf(
         EstateSector(
-            id = "GATE_NORTH",
+            id = "GERBANG_UTARA",
             shortCode = "GERBANG-U",
             name = "Gerbang Utama Utara",
-            streetName = "Jl. Oakridge Boulevard",
+            streetName = "Jl. Selaras Utara",
             kind = SectorKind.GATE,
             normX = 0.50f,
-            normY = 0.10f,
-            description = "Pos pemeriksaan kendaraan utama dan palang pintu tamu.",
-            neighbors = listOf("BLOCK_A", "BLOCK_B", "CROSSWALK")
+            normY = 0.08f,
+            description = "Pos pemeriksaan utama Bumi Papan Selaras dengan palang portal otomatis.",
+            neighbors = listOf("BLOK_KRISAN", "BLOK_CEMPAKA", "AREA_MASJID")
         ),
         EstateSector(
-            id = "BLOCK_A",
-            shortCode = "BLOK-A",
-            name = "Blok A: Menara Amberwood",
-            streetName = "Lorong Lentera",
+            id = "BLOK_KRISAN",
+            shortCode = "KRISAN",
+            name = "Blok Krisan",
+            streetName = "Jl. Krisan Raya",
             kind = SectorKind.BLOCK,
-            normX = 0.25f,
-            normY = 0.34f,
-            description = "Menara hunian kembar 18 lantai dengan akses atap.",
-            neighbors = listOf("GATE_NORTH", "PARK_WEST", "CROSSWALK")
+            normX = 0.22f,
+            normY = 0.29f,
+            description = "Klaster hunian barat laut dengan akses gang menuju Blok Cemara.",
+            neighbors = listOf("GERBANG_UTARA", "BLOK_CEMARA", "AREA_MASJID")
         ),
         EstateSector(
-            id = "BLOCK_B",
-            shortCode = "BLOK-B",
-            name = "Blok B: Vila Taman Cedar",
-            streetName = "Jl. Oakridge Boulevard",
+            id = "BLOK_CEMPAKA",
+            shortCode = "CEMPAKA",
+            name = "Blok Cempaka",
+            streetName = "Jl. Cempaka Asri",
             kind = SectorKind.BLOCK,
-            normX = 0.75f,
-            normY = 0.17f,
-            description = "Kompleks vila taman berpagar dengan semak perimeter rapat.",
-            neighbors = listOf("GATE_NORTH", "CROSSWALK", "BLOCK_D")
+            normX = 0.78f,
+            normY = 0.29f,
+            description = "Deretan rumah sudut timur laut dekat jalan utama kompleks.",
+            neighbors = listOf("GERBANG_UTARA", "BLOK_AKASIA", "AREA_MASJID")
         ),
         EstateSector(
-            id = "PARK_WEST",
-            shortCode = "TAMAN-B",
-            name = "Taman Bermain Rembulan",
-            streetName = "Lorong Lentera",
-            kind = SectorKind.PARK,
-            normX = 0.14f,
+            id = "BLOK_CEMARA",
+            shortCode = "CEMARA",
+            name = "Blok Cemara",
+            streetName = "Jl. Cemara Indah",
+            kind = SectorKind.BLOCK,
+            normX = 0.29f,
             normY = 0.50f,
-            description = "Ruang terbuka hijau di sisi barat dengan penerangan minim.",
-            neighbors = listOf("BLOCK_A", "PARK_CENTRAL", "BLOCK_C")
+            description = "Kawasan rindang berderet pohon cemara dengan gang sempit favorit penyusup.",
+            neighbors = listOf("BLOK_KRISAN", "AREA_MASJID", "BLOK_CAMELIA")
         ),
         EstateSector(
-            id = "CROSSWALK",
-            shortCode = "SIMPANG",
-            name = "Bundaran Penyeberangan Pusat",
-            streetName = "Jl. Simpang Tengah",
-            kind = SectorKind.INTERSECTION,
+            id = "AREA_MASJID",
+            shortCode = "MASJID",
+            name = "Area Masjid Agung Selaras",
+            streetName = "Bundaran Masjid Selaras",
+            kind = SectorKind.LANDMARK,
             normX = 0.50f,
-            normY = 0.37f,
-            description = "Persimpangan 4 arah utama penghubung Blok A hingga D.",
-            neighbors = listOf("GATE_NORTH", "BLOCK_A", "BLOCK_B", "PARK_CENTRAL")
+            normY = 0.60f,
+            description = "Landmark ikonik & titik orientasi utama kawasan Bumi Papan Selaras.",
+            neighbors = listOf("GERBANG_UTARA", "BLOK_KRISAN", "BLOK_CEMPAKA", "BLOK_CEMARA", "BLOK_AKASIA", "BLOK_CAMELIA", "BLOK_FLAMBOYAN", "GERBANG_SELATAN")
         ),
         EstateSector(
-            id = "PARK_CENTRAL",
-            shortCode = "TAMAN",
-            name = "Taman Pusat Willow",
-            streetName = "Jl. Bulan Sabit",
-            kind = SectorKind.PARK,
-            normX = 0.50f,
-            normY = 0.57f,
-            description = "Alun-alun taman luas, air mancur, dan lintasan lari.",
-            neighbors = listOf("CROSSWALK", "PARK_WEST", "BLOCK_C", "BLOCK_D", "GATE_SOUTH")
-        ),
-        EstateSector(
-            id = "BLOCK_C",
-            shortCode = "BLOK-C",
-            name = "Blok C: Apartemen Horizon",
-            streetName = "Lorong Lentera",
+            id = "BLOK_AKASIA",
+            shortCode = "AKASIA",
+            name = "Blok Akasia",
+            streetName = "Jl. Akasia Timur",
             kind = SectorKind.BLOCK,
-            normX = 0.25f,
-            normY = 0.83f,
-            description = "Apartemen halaman tengah di dekat gang pengiriman barang.",
-            neighbors = listOf("PARK_WEST", "PARK_CENTRAL", "GATE_SOUTH")
+            normX = 0.71f,
+            normY = 0.50f,
+            description = "Blok hunian timur dengan penerangan jalan utama dan tikungan cepat.",
+            neighbors = listOf("BLOK_CEMPAKA", "AREA_MASJID", "BLOK_FLAMBOYAN")
         ),
         EstateSector(
-            id = "BLOCK_D",
-            shortCode = "BLOK-D",
-            name = "Blok D: Kondominium Maple",
-            streetName = "Jl. Bulan Sabit",
+            id = "BLOK_CAMELIA",
+            shortCode = "CAMELIA",
+            name = "Blok Camelia",
+            streetName = "Jl. Camelia Barat",
             kind = SectorKind.BLOCK,
-            normX = 0.75f,
-            normY = 0.83f,
-            description = "Kondominium bertingkat yang berbatasan langsung dengan tembok timur.",
-            neighbors = listOf("BLOCK_B", "PARK_CENTRAL", "GATE_SOUTH")
+            normX = 0.22f,
+            normY = 0.71f,
+            description = "Klaster barat daya yang terhubung langsung ke gerbang selatan.",
+            neighbors = listOf("BLOK_CEMARA", "AREA_MASJID", "GERBANG_SELATAN")
         ),
         EstateSector(
-            id = "GATE_SOUTH",
+            id = "BLOK_FLAMBOYAN",
+            shortCode = "FLAMBOYAN",
+            name = "Blok Flamboyan",
+            streetName = "Jl. Flamboyan Raya",
+            kind = SectorKind.BLOCK,
+            normX = 0.78f,
+            normY = 0.71f,
+            description = "Area hunian bertingkat di sisi tenggara yang rawan pelarian.",
+            neighbors = listOf("BLOK_AKASIA", "AREA_MASJID", "GERBANG_SELATAN")
+        ),
+        EstateSector(
+            id = "GERBANG_SELATAN",
             shortCode = "GERBANG-S",
-            name = "Portal Servis Selatan",
-            streetName = "Jl. Senja Raya",
+            name = "Gerbang Servis Selatan",
+            streetName = "Jl. Selaras Selatan",
             kind = SectorKind.GATE,
             normX = 0.50f,
-            normY = 0.90f,
-            description = "Pintu putar pejalan kaki dan portal akses pengiriman logistik.",
-            neighbors = listOf("PARK_CENTRAL", "BLOCK_C", "BLOCK_D")
+            normY = 0.92f,
+            description = "Portal akses selatan perumahan Bumi Papan Selaras.",
+            neighbors = listOf("AREA_MASJID", "BLOK_CAMELIA", "BLOK_FLAMBOYAN")
         )
     )
 
-    fun byId(id: String): EstateSector =
-        sectors.firstOrNull { it.id == id } ?: sectors.first()
+    fun byId(id: String): EstateSector {
+        val mapped = when (id) {
+            "GATE_NORTH" -> "GERBANG_UTARA"
+            "GATE_SOUTH" -> "GERBANG_SELATAN"
+            "BLOCK_A" -> "BLOK_KRISAN"
+            "BLOCK_B" -> "BLOK_CEMPAKA"
+            "BLOCK_C" -> "BLOK_CAMELIA"
+            "BLOCK_D" -> "BLOK_FLAMBOYAN"
+            "PARK_WEST" -> "BLOK_CEMARA"
+            "PARK_CENTRAL", "CROSSWALK" -> "AREA_MASJID"
+            else -> id
+        }
+        return sectors.firstOrNull { it.id == mapped } ?: sectors.first()
+    }
 
     fun nearestTo(x: Float, y: Float): EstateSector =
         sectors.minByOrNull { s ->
@@ -347,15 +392,15 @@ object EstateWorld {
     }
 
     fun isWalkable(nx: Float, ny: Float, pad: Float = 0.018f): Boolean {
-        if (nx < 0.06f || nx > 0.94f || ny < 0.06f || ny > 0.94f) return false
+        if (nx < 0.05f || nx > 0.95f || ny < 0.05f || ny > 0.95f) return false
         return buildings.none { b ->
             nx in (b.minX - pad)..(b.maxX + pad) && ny in (b.minY - pad)..(b.maxY + pad)
         }
     }
 
     fun moveWithCollision(oldX: Float, oldY: Float, targetX: Float, targetY: Float): Pair<Float, Float> {
-        val clampedX = targetX.coerceIn(0.06f, 0.94f)
-        val clampedY = targetY.coerceIn(0.06f, 0.94f)
+        val clampedX = targetX.coerceIn(0.05f, 0.95f)
+        val clampedY = targetY.coerceIn(0.05f, 0.95f)
         if (isWalkable(clampedX, clampedY)) return clampedX to clampedY
         if (isWalkable(clampedX, oldY)) return clampedX to oldY
         if (isWalkable(oldX, clampedY)) return oldX to clampedY
@@ -364,15 +409,17 @@ object EstateWorld {
 }
 
 enum class ShopCategory(val label: String) {
-    UNIFORM("Baju & Seragam"),
-    WEAPON("Senjata Dipegang"),
-    ATTRIBUTE("Atribut Kebutuhan")
+    UNIFORM("Baju Armor"),
+    WEAPON("Senjata"),
+    ATTRIBUTE("Atribut")
 }
 
 data class UniformItem(
     val id: String,
     val name: String,
     val rankTitle: String,
+    val armorLevel: Int,
+    val damageReduction: Float,
     val price: Long,
     val primaryColor: Color,
     val trimColor: Color,
@@ -386,67 +433,67 @@ object UniformCatalog {
     val items: List<UniformItem> = listOf(
         UniformItem(
             id = "rookie_cadet",
-            name = "Seragam Kadet Biru",
-            rankTitle = "Kadet",
+            name = "Seragam Patroli Dasar",
+            rankTitle = "Armor Level 1",
+            armorLevel = 1,
+            damageReduction = 0.10f,
             price = 0L,
             primaryColor = Color(0xFF38BDF8),
             trimColor = Color(0xFFF8FAFC),
-            bonusFlair = "Perlengkapan Standar",
-            description = "Kemeja patroli biru dengan garis reflektif malam dan lencana kadet."
+            bonusFlair = "Redam 10% Damage",
+            description = "Baju dinas keamanan standar Bumi Papan Selaras dengan proteksi dasar Level 1."
         ),
         UniformItem(
             id = "neon_warden",
-            name = "Jaket Siber-Neon",
-            rankTitle = "Sipir",
+            name = "Jaket Taktis Selaras",
+            rankTitle = "Armor Level 2",
+            armorLevel = 2,
+            damageReduction = 0.28f,
             price = 250L,
             primaryColor = Color(0xFF06B6D4),
             trimColor = Color(0xFF22D3EE),
-            bonusFlair = "Jejak Radar Sian",
-            description = "Jaket taktis patroli malam lengkap dengan pelindung bahu menyala.",
+            bonusFlair = "Redam 28% Damage",
+            description = "Baju premium berlapis pelindung ringan Level 2 untuk menahan tembakan pistol.",
             hasShoulderPads = true
         ),
         UniformItem(
             id = "crimson_marshal",
-            name = "Jaket Marsekal Merah",
-            rankTitle = "Marsekal",
-            price = 500L,
+            name = "Rompi Balistik Kevlar",
+            rankTitle = "Armor Level 3",
+            armorLevel = 3,
+            damageReduction = 0.45f,
+            price = 550L,
             primaryColor = Color(0xFFEF4444),
             trimColor = Color(0xFFFBBF24),
-            bonusFlair = "Efek Kunci Gerbang",
-            description = "Jaket komando merah menyala andalan petugas pos penjagaan gerbang.",
+            bonusFlair = "Redam 45% Damage",
+            description = "Jaket tempur balistik Level 3 berpelindung bahu untuk baku tembak sengit.",
             hasShoulderPads = true
-        ),
-        UniformItem(
-            id = "night_owl",
-            name = "Parka Pengintai Malam",
-            rankTitle = "Pengintai",
-            price = 800L,
-            primaryColor = Color(0xFF10B981),
-            trimColor = Color(0xFF6EE7B7),
-            bonusFlair = "Optik Zamrud",
-            description = "Parka gelap anti-radar berkerah tinggi untuk menyisir taman malam.",
-            hasCapeOrCollar = true
         ),
         UniformItem(
             id = "gandi_fanclub",
-            name = "Jaket Emas GANDI",
-            rankTitle = "Kepala Operator",
-            price = 1200L,
+            name = "Zirah Komando Elit",
+            rankTitle = "Armor Level 4",
+            armorLevel = 4,
+            damageReduction = 0.60f,
+            price = 1000L,
             primaryColor = Color(0xFFF59E0B),
             trimColor = Color(0xFFFEF08A),
-            bonusFlair = "+25 Poin Tangkapan",
-            description = "Jaket amber cerah berpin megafon. GANDI selalu heboh memuji seragam ini!",
-            hasShoulderPads = true
+            bonusFlair = "Redam 60% +25 Poin",
+            description = "Baju armor premium Level 4 beraksen emas yang meredam 60% serangan pencuri!",
+            hasShoulderPads = true,
+            hasCapeOrCollar = true
         ),
         UniformItem(
             id = "royal_sentinel",
-            name = "Zirah Panglima Agung",
-            rankTitle = "Komandan Utama",
-            price = 2000L,
+            name = "Juggernaut Titanium Selaras",
+            rankTitle = "Armor Level 5 MAX",
+            armorLevel = 5,
+            damageReduction = 0.75f,
+            price = 1800L,
             primaryColor = Color(0xFFA855F7),
             trimColor = Color(0xFFFDE047),
-            bonusFlair = "+25 Poin & Jubah",
-            description = "Zirah seremonial obsidian-emas lengkap dengan jubah komando Emerald Crest.",
+            bonusFlair = "Redam 75% +25 Poin",
+            description = "Armor tempur tertinggi Level 5 berbahan titanium dengan ketahanan maksimal.",
             hasShoulderPads = true,
             hasCapeOrCollar = true
         )
@@ -457,7 +504,7 @@ object UniformCatalog {
 }
 
 enum class WeaponStyle {
-    BATON, FLASHLIGHT, TASER_PISTOL, NET_LAUNCHER, CYBER_CARBINE
+    PISTOL, GRENADE, AK47, BAZOOKA
 }
 
 data class WeaponItem(
@@ -468,7 +515,10 @@ data class WeaponItem(
     val primaryColor: Color,
     val accentColor: Color,
     val style: WeaponStyle,
+    val damage: Int,
     val rangeNorm: Float,
+    val aoeRadius: Float,
+    val cooldownMs: Long,
     val stunSeconds: Float,
     val bonusPoints: Long,
     val description: String
@@ -477,74 +527,81 @@ data class WeaponItem(
 object WeaponCatalog {
     val items: List<WeaponItem> = listOf(
         WeaponItem(
-            id = "baton_standard",
-            name = "Tongkat Patroli Standar",
-            categoryTag = "Jarak Dekat",
+            id = "pistol_9mm",
+            name = "Pistol Taktis 9mm",
+            categoryTag = "Mobilitas Tinggi",
             price = 0L,
             primaryColor = Color(0xFF64748B),
             accentColor = Color(0xFF38BDF8),
-            style = WeaponStyle.BATON,
-            rangeNorm = 0.22f,
-            stunSeconds = 2.0f,
+            style = WeaponStyle.PISTOL,
+            damage = 24,
+            rangeNorm = 0.30f,
+            aoeRadius = 0f,
+            cooldownMs = 420L,
+            stunSeconds = 1.5f,
             bonusPoints = 0L,
-            description = "Tongkat kejut ringan di tangan kanan untuk melumpuhkan penyusup jarak dekat."
+            description = "Pistol jangkauan menengah dengan mobilitas tinggi untuk serangan dasar cepat."
         ),
         WeaponItem(
-            id = "tactical_flashlight",
-            name = "Senter Kejut LED Pro",
-            categoryTag = "Cahaya & Kejut",
-            price = 200L,
-            primaryColor = Color(0xFF334155),
-            accentColor = Color(0xFFFDE047),
-            style = WeaponStyle.FLASHLIGHT,
-            rangeNorm = 0.28f,
-            stunSeconds = 3.0f,
-            bonusPoints = 10L,
-            description = "Senter logam berat dengan sorot lampu 3D terang untuk menyilaukan pencuri."
-        ),
-        WeaponItem(
-            id = "stun_pistol",
-            name = "Pistol Bius Taser X2",
-            categoryTag = "Tembak Menengah",
-            price = 450L,
-            primaryColor = Color(0xFFEAB308),
-            accentColor = Color(0xFF22D3EE),
-            style = WeaponStyle.TASER_PISTOL,
+            id = "granat_frag",
+            name = "Granat Ledak MK-II",
+            categoryTag = "Ledakan Area",
+            price = 250L,
+            primaryColor = Color(0xFF15803D),
+            accentColor = Color(0xFFF59E0B),
+            style = WeaponStyle.GRENADE,
+            damage = 60,
             rangeNorm = 0.36f,
-            stunSeconds = 4.0f,
+            aoeRadius = 0.14f,
+            cooldownMs = 1150L,
+            stunSeconds = 3.0f,
             bonusPoints = 15L,
-            description = "Menembakkan busur listrik biru untuk menghentikan langkah maling dari jauh."
+            description = "Lemparan granat berdaya ledak area untuk menghantam pencuri saat berlindung."
         ),
         WeaponItem(
-            id = "net_launcher",
-            name = "Peluncur Jaring Taktis",
-            categoryTag = "Penjerat Luas",
-            price = 850L,
-            primaryColor = Color(0xFF0EA5E9),
-            accentColor = Color(0xFF6EE7B7),
-            style = WeaponStyle.NET_LAUNCHER,
-            rangeNorm = 0.42f,
-            stunSeconds = 5.5f,
-            bonusPoints = 20L,
-            description = "Senjata peluncur jaring energi untuk mengunci pergerakan penyusup lebih lama."
+            id = "ak47_assault",
+            name = "AK-47 Otomatis",
+            categoryTag = "Rifle Cepat",
+            price = 650L,
+            primaryColor = Color(0xFF92400E),
+            accentColor = Color(0xFFFBBF24),
+            style = WeaponStyle.AK47,
+            damage = 22,
+            rangeNorm = 0.43f,
+            aoeRadius = 0f,
+            cooldownMs = 180L,
+            stunSeconds = 2.5f,
+            bonusPoints = 25L,
+            description = "Rifle otomatis AK-47 berdaya tembak kuat dan cepat untuk duel jarak jauh."
         ),
         WeaponItem(
-            id = "cyber_carbine",
-            name = "Senapan Pulsa Siber",
-            categoryTag = "Jarak Jauh Elit",
-            price = 1500L,
-            primaryColor = Color(0xFF8B5CF6),
-            accentColor = Color(0xFFF43F5E),
-            style = WeaponStyle.CYBER_CARBINE,
-            rangeNorm = 0.50f,
-            stunSeconds = 6.5f,
-            bonusPoints = 35L,
-            description = "Karabin energi futuristik berjangkauan terjauh +35 Poin bonus tangkap."
+            id = "bazoka_rpg",
+            name = "Bazoka Peluncur Roket",
+            categoryTag = "Daya Ledak Maks",
+            price = 1400L,
+            primaryColor = Color(0xFF475569),
+            accentColor = Color(0xFFEF4444),
+            style = WeaponStyle.BAZOOKA,
+            damage = 95,
+            rangeNorm = 0.52f,
+            aoeRadius = 0.18f,
+            cooldownMs = 1600L,
+            stunSeconds = 4.5f,
+            bonusPoints = 50L,
+            description = "Senjata peluncur roket berdaya ledak terbesar untuk meruntuhkan pertahanan pencuri!"
         )
     )
 
-    fun byId(id: String): WeaponItem =
-        items.firstOrNull { it.id == id } ?: items.first()
+    fun byId(id: String): WeaponItem {
+        val mapped = when (id) {
+            "baton_standard", "tactical_flashlight" -> "pistol_9mm"
+            "stun_pistol" -> "pistol_9mm"
+            "net_launcher" -> "granat_frag"
+            "cyber_carbine" -> "ak47_assault"
+            else -> id
+        }
+        return items.firstOrNull { it.id == mapped } ?: items.first()
+    }
 }
 
 enum class AttributeStyle {
@@ -571,7 +628,7 @@ object AttributeCatalog {
         AttributeItem(
             id = "utility_belt",
             name = "Sabuk Utilitas Dasar",
-            needLabel = "Kebutuhan Dasar",
+            needLabel = "Perlengkapan Standar",
             price = 0L,
             primaryColor = Color(0xFF475569),
             accentColor = Color(0xFFF59E0B),
@@ -580,12 +637,12 @@ object AttributeCatalog {
             visionBoost = 0.0f,
             catchRadiusBonus = 0.0f,
             staminaDrainFactor = 1.0f,
-            description = "Sabuk perlengkapan standar untuk borgol dan walkie-talkie patroli."
+            description = "Sabuk taktis dasar untuk borgol, amunisi cadangan, dan radio patroli."
         ),
         AttributeItem(
             id = "speed_boots",
             name = "Sepatu Taktis Turbo",
-            needLabel = "Mobilitas & Stamina",
+            needLabel = "Mobilitas Pengejaran",
             price = 250L,
             primaryColor = Color(0xFF0284C7),
             accentColor = Color(0xFF38BDF8),
@@ -594,25 +651,25 @@ object AttributeCatalog {
             visionBoost = 0.05f,
             catchRadiusBonus = 0.02f,
             staminaDrainFactor = 0.72f,
-            description = "Memenuhi kebutuhan lari cepat 3D (+38% kecepatan) saat mengejar pencuri."
+            description = "Menambah kecepatan lari +38% di kawasan Bumi Papan Selaras."
         ),
         AttributeItem(
             id = "kevlar_vest",
-            name = "Rompi Pelindung Kevlar",
-            needLabel = "Pertahanan & Daya Tahan",
+            name = "Pelindung Stamina & Medkit",
+            needLabel = "Daya Tahan Tempur",
             price = 450L,
             primaryColor = Color(0xFF1E293B),
             accentColor = Color(0xFF10B981),
             style = AttributeStyle.KEVLAR_VEST,
-            speedMultiplier = 1.10f,
+            speedMultiplier = 1.12f,
             visionBoost = 0.05f,
             catchRadiusBonus = 0.03f,
-            staminaDrainFactor = 0.50f,
-            description = "Rompi taktis 3D yang menghemat stamina patroli hingga 50% lebih awet."
+            staminaDrainFactor = 0.48f,
+            description = "Menghemat stamina lari hingga 50% lebih awet saat mengejar antarblok."
         ),
         AttributeItem(
             id = "nvg_goggles",
-            name = "Helm Kacamata Malam NVG",
+            name = "Kacamata Malam NVG",
             needLabel = "Visibilitas Malam",
             price = 750L,
             primaryColor = Color(0xFF065F46),
@@ -622,7 +679,7 @@ object AttributeCatalog {
             visionBoost = 0.85f,
             catchRadiusBonus = 0.04f,
             staminaDrainFactor = 0.75f,
-            description = "Memenuhi kebutuhan penglihatan malam: menerangi arena 3D & sorot target."
+            description = "Menerangi seluruh gang gelap & menyorot siluet pencuri di malam hari."
         ),
         AttributeItem(
             id = "scanner_drone",
@@ -634,9 +691,9 @@ object AttributeCatalog {
             style = AttributeStyle.SCANNER_DRONE,
             speedMultiplier = 1.24f,
             visionBoost = 0.45f,
-            catchRadiusBonus = 0.11f,
+            catchRadiusBonus = 0.12f,
             staminaDrainFactor = 0.60f,
-            description = "Drone pendamping 3D melayang di bahu, memperluas radius tangkap & pelacakan!"
+            description = "Drone pendamping di bahu yang memperluas radius tangkap & radar pelacak."
         )
     )
 
@@ -656,8 +713,8 @@ object QuickRadioPresets {
         QuickRadioCommand("corner_gate", "Kepung Gerbang U!", "Merapat! Kepung tersangka di Gerbang Utama Utara!", PingType.BLOCK_GATE),
         QuickRadioCommand("need_backup", "Butuh Bantuan!", "Minta bantuan segera di %SECTOR% (%STREET%)!", PingType.BACKUP),
         QuickRadioCommand("visual", "Maling Terlihat!", "Kontak visual! Pencuri terlihat di dekat %SECTOR% (%STREET%)!", PingType.SUSPECT),
-        QuickRadioCommand("cut_off", "Tutup Jl. Senja!", "Memotong jalur kabur di sepanjang Jl. Senja Raya!", PingType.BLOCK_GATE),
-        QuickRadioCommand("seal_portal", "Kunci Portal Selatan!", "Mengunci Portal Servis Selatan—awasi gang belakang!", PingType.BLOCK_GATE),
-        QuickRadioCommand("all_clear", "Sektor Aman", "Penyisiran %SECTOR% selesai—perimeter aman terkendali.", PingType.CLEAR)
+        QuickRadioCommand("cut_off", "Kepung Masjid!", "Potong jalur pelarian di Bundaran Area Masjid Selaras!", PingType.BLOCK_GATE),
+        QuickRadioCommand("seal_portal", "Kunci Gerbang Selatan!", "Mengunci Gerbang Servis Selatan—blokir jalur kabur!", PingType.BLOCK_GATE),
+        QuickRadioCommand("all_clear", "Blok Aman", "Penyisiran %SECTOR% selesai—wilayah aman terkendali.", PingType.CLEAR)
     )
 }

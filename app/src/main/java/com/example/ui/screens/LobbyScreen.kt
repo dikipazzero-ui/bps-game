@@ -84,7 +84,7 @@ fun LobbyScreen(
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var showJoinDialog by remember { mutableStateOf(false) }
-    var shiftTitle by remember { mutableStateOf("Patroli Malam Emerald Crest") }
+    var shiftTitle by remember { mutableStateOf("Patroli Bumi Papan Selaras") }
     var joinCode by remember { mutableStateOf("") }
 
     Box(
@@ -143,7 +143,7 @@ fun LobbyScreen(
                                 ) {
                                     Image(
                                         painter = painterResource(id = R.drawable.img_estate_banner),
-                                        contentDescription = "Peta Perumahan Emerald Crest",
+                                        contentDescription = "Peta Perumahan Bumi Papan Selaras",
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
@@ -300,7 +300,7 @@ fun LobbyScreen(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "\"Mulai Patroli untuk menyisir Blok A–D, atau masukkan Kode Ruang temanmu untuk gabung satu regu!\"",
+                                text = "\"Mulai Patroli untuk menyisir Blok Krisan, Cempaka, Cemara, Akasia, Camelia, Flamboyan & Area Masjid Bumi Papan Selaras!\"",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )

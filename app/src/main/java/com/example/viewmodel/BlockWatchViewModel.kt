@@ -87,6 +87,8 @@ class BlockWatchViewModel(
     private val _thiefStunnedUntilMs = MutableStateFlow(0L)
     val thiefStunnedUntilMs: StateFlow<Long> = _thiefStunnedUntilMs.asStateFlow()
 
+    private var returnToRoomAfterShop: Boolean = false
+
     val profileState: StateFlow<UiState<UserProfile>> = repository.observeUserProfile(currentUserId)
         .map<UserProfile?, UiState<UserProfile>> { profile ->
             if (profile != null) UiState.Success(profile) else UiState.Loading
@@ -174,7 +176,36 @@ class BlockWatchViewModel(
             stopThiefPatrolLoop()
             voiceSpeaker.stop()
         }
+        if (screen != AppScreen.SHOP) {
+            returnToRoomAfterShop = false
+        }
         _currentScreen.value = screen
+    }
+
+    fun openShopFromRoom() {
+        returnToRoomAfterShop = (_activeRoomId.value != null)
+        voiceSpeaker.stop()
+        _currentScreen.value = AppScreen.SHOP
+    }
+
+    fun closeShop() {
+        val roomId = _activeRoomId.value
+        val profile = (profileState.value as? UiState.Success)?.data
+        if (returnToRoomAfterShop && roomId != null) {
+            returnToRoomAfterShop = false
+            _currentScreen.value = AppScreen.PATROL_ROOM
+            val bundle = (roomBundleState.value as? UiState.Success)?.data
+            if (bundle?.room?.hostUid == currentUserId) {
+                startThiefPatrolLoop(roomId)
+            }
+            if (profile != null) {
+                viewModelScope.launch {
+                    repository.syncPlayerLoadoutInRoom(roomId, profile)
+                }
+            }
+        } else {
+            navigateTo(AppScreen.LOBBY)
+        }
     }
 
     fun clearBanner() {
@@ -292,7 +323,41 @@ class BlockWatchViewModel(
         val weapon = WeaponCatalog.byId(profile.equippedWeaponId)
         val durationMs = (weapon.stunSeconds * 1000L).toLong()
         _thiefStunnedUntilMs.value = System.currentTimeMillis() + durationMs
-        _statusBanner.value = "Kena! ${weapon.name} melumpuhkan penyusup (${weapon.stunSeconds.toInt()} dtk) — segera TANGKAP!"
+    }
+
+    fun onMissionVictory(bonusPoints: Long, wave: Int) {
+        val roomId = _activeRoomId.value ?: return
+        val bundle = (roomBundleState.value as? UiState.Success)?.data ?: return
+        val room = bundle.room ?: return
+        val profile = (profileState.value as? UiState.Success)?.data ?: return
+        viewModelScope.launch {
+            repository.apprehendThief(roomId, room, profile, bonusPoints)
+                .onSuccess { pts ->
+                    _thiefStunnedUntilMs.value = 0L
+                    _statusBanner.value = "Misi #$wave Berhasil! +$pts Poin Patroli"
+                }
+                .onFailure {
+                    _statusBanner.value = it.localizedMessage ?: "Gagal mencatat kemenangan misi"
+                }
+        }
+    }
+
+    fun quickSwitchWeapon(weaponId: String) {
+        val profile = (profileState.value as? UiState.Success)?.data ?: return
+        val roomId = _activeRoomId.value
+        viewModelScope.launch {
+            repository.purchaseAndEquipWeapon(weaponId, profile)
+                .onSuccess {
+                    val weapon = WeaponCatalog.byId(weaponId)
+                    _statusBanner.value = "Senjata aktif: ${weapon.name}"
+                    if (roomId != null) {
+                        repository.syncPlayerLoadoutInRoom(roomId, profile.copy(equippedWeaponId = weapon.id))
+                    }
+                }
+                .onFailure {
+                    _statusBanner.value = it.localizedMessage
+                }
+        }
     }
 
     fun toggleGate(isNorthGate: Boolean) {
@@ -354,7 +419,7 @@ class BlockWatchViewModel(
         val bundle = (roomBundleState.value as? UiState.Success)?.data ?: return
         val profile = (profileState.value as? UiState.Success)?.data ?: return
         val me = bundle.players.firstOrNull { it.userId == currentUserId }
-        val sector = EstateWorld.byId(me?.sectorId ?: bundle.room?.activeThiefSectorId ?: "CROSSWALK")
+        val sector = EstateWorld.byId(me?.sectorId ?: bundle.room?.activeThiefSectorId ?: "AREA_MASJID")
 
         val text = command.messageTemplate
             .replace("%SECTOR%", sector.name)
@@ -392,7 +457,7 @@ class BlockWatchViewModel(
             if (!active) {
                 val bundle = (roomBundleState.value as? UiState.Success)?.data
                 val me = bundle?.players?.firstOrNull { it.userId == currentUserId }
-                val sector = EstateWorld.byId(me?.sectorId ?: "CROSSWALK")
+                val sector = EstateWorld.byId(me?.sectorId ?: "AREA_MASJID")
                 repository.sendMessage(
                     roomId = roomId,
                     senderName = profile.displayName,

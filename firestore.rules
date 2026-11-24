@@ -25,6 +25,9 @@ service cloud.firestore {
 
     function isValidSectorId(s) {
       return s in [
+        'BLOK_KRISAN', 'BLOK_CEMPAKA', 'BLOK_CEMARA',
+        'BLOK_AKASIA', 'BLOK_CAMELIA', 'BLOK_FLAMBOYAN',
+        'AREA_MASJID', 'GERBANG_UTARA', 'GERBANG_SELATAN',
         'GATE_NORTH', 'GATE_SOUTH',
         'BLOCK_A', 'BLOCK_B', 'BLOCK_C', 'BLOCK_D',
         'PARK_CENTRAL', 'PARK_WEST', 'CROSSWALK'

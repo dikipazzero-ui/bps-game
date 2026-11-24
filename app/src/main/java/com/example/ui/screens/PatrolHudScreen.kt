@@ -120,7 +120,10 @@ fun PatrolHudScreen(
     onSendRadio: (QuickRadioCommand) -> Unit,
     onSendChat: (String) -> Unit,
     onSetPtt: (Boolean, Boolean) -> Unit,
-    onToggleVoice: (Boolean) -> Unit
+    onToggleVoice: (Boolean) -> Unit,
+    onMissionVictory: (Long, Int) -> Unit,
+    onSwitchWeapon: (String) -> Unit,
+    onOpenShop: () -> Unit
 ) {
     BackHandler { onExitRoom() }
 
@@ -243,6 +246,9 @@ fun PatrolHudScreen(
                                         },
                                         onWeaponHitThief = onWeaponHitThief,
                                         onApprehend = onApprehend,
+                                        onMissionVictory = onMissionVictory,
+                                        onSwitchWeapon = onSwitchWeapon,
+                                        onOpenShop = onOpenShop,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .weight(1f)
@@ -333,6 +339,9 @@ fun PatrolHudScreen(
                                     },
                                     onWeaponHitThief = onWeaponHitThief,
                                     onApprehend = onApprehend,
+                                    onMissionVictory = onMissionVictory,
+                                    onSwitchWeapon = onSwitchWeapon,
+                                    onOpenShop = onOpenShop,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .weight(0.56f)

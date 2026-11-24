@@ -1,69 +1,39 @@
-# BPSGIM — Dokumen Desain Game & Arsitektur Teknis
+# BPSGIM — Bumi Papan Selaras (Dokumen Desain & Arsitektur)
 
-## 1. Konsep & Alur Permainan Utama
-**BPSGIM** adalah game patroli keamanan perumahan multiplayer real-time berlatar **Kompleks Emerald Crest**, sebuah kawasan hunian luas. Pemain bertugas sebagai petugas keamanan (atau bertukar peran) untuk berpatroli di jalanan kompleks, memantau blok hunian dan taman terbuka, berkoordinasi mencegat penyusup, mengunci gerbang perimeter, serta menangkap pencuri.
+## 1. Premis & Alur State Permainan
+**BPSGIM** adalah game aksi keamanan perumahan 3D/4D bergaya GTA berlatar kawasan luas **Bumi Papan Selaras**.
+- **Alur State**: `Menu (Markas) -> Patroli / Misi (Timer 02:00) -> Pertarungan (Baku Tembak HP vs HP) -> Menang (+Poin) / Kalah (Wasted / Time Up) -> Toko 3D -> Misi Berikutnya`.
+- **Menang (`VICTORY`)**: HP Pencuri habis (0) sebelum waktu habis -> mendapat hadiah Poin Patroli.
+- **Kalah (`WASTED` / `TIME_UP`)**: HP Pemain habis (0) atau countdown timer mencapai `00:00`.
 
-### Alur Inti
-1. **Login & Persiapan**: Masuk dengan Google Sign-In lalu cek Poin Patroli, jumlah tangkapan, dan seragam aktif di Markas.
-2. **Buka / Gabung Regu**: Buat Shift Patroli multiplayer baru (menghasilkan Kode Ruang 6 karakter) atau gabung ke ruang regu teman lewat kode.
-3. **Patroli & Lacak**: Ketuk sektor atau koordinat di Peta Taktis 2D secara langsung untuk berpatroli sementara GANDI melaporkan lokasi penyusup dan status gerbang.
-4. **Koordinasi & Kunci Jalur**: Pasang ping lokasi (`Ada Penyusup`, `Butuh Bantuan`, `Tutup Gerbang`, `Sektor Aman`), kirim perintah Radio Cepat 1-ketuk, obrolan teks real-time, atau aktifkan walkie-talkie Push-to-Talk (PTT). Kunci **Gerbang Utama Utara** atau **Portal Servis Selatan** untuk memutus rute kabur.
-5. **Tangkap & Raih Poin**: Dekati sektor lokasi penyusup lalu tekan **TANGKAP** (+100 poin dasar, +50 bonus Gerbang Terkunci, +25 bonus Seragam Prestise).
-6. **Progresi Gudang Seragam**: Belanjakan Poin Patroli di Gudang Seragam untuk membuka dan memakai 6 seragam berbeda yang mengubah warna token peta, bingkai aura, dan pangkat Anda.
-
----
-
-## 2. Peta Kawasan & Sektor (9 Zona Terhubung)
-| ID | Nama Sektor | Jalan | Jenis | Peran Taktis |
-|---|---|---|---|---|
-| `GATE_NORTH` | Gerbang Utama Utara | Jl. Oakridge Boulevard | Gerbang/Portal | Pos pemeriksaan kendaraan utama & palang pintu |
-| `GATE_SOUTH` | Portal Servis Selatan | Jl. Senja Raya | Gerbang/Portal | Pintu putar pejalan kaki & portal akses logistik |
-| `BLOCK_A` | Blok A: Menara Amberwood | Lorong Lentera | Kompleks | Menara hunian kembar 18 lantai dengan akses atap |
-| `BLOCK_B` | Blok B: Vila Taman Cedar | Jl. Oakridge Boulevard | Kompleks | Kompleks vila taman berpagar di sisi timur laut |
-| `BLOCK_C` | Blok C: Apartemen Horizon | Lorong Lentera | Kompleks | Apartemen halaman tengah dekat gang pengiriman |
-| `BLOCK_D` | Blok D: Kondominium Maple | Jl. Bulan Sabit | Kompleks | Kondominium bertingkat di sepanjang tembok timur |
-| `PARK_CENTRAL` | Taman Pusat Willow | Jl. Bulan Sabit | Taman Terbuka | Alun-alun taman luas, air mancur, dan lintasan lari |
-| `PARK_WEST` | Taman Bermain Rembulan | Lorong Lentera | Taman Terbuka | Ruang terbuka barat dengan pencahayaan minim |
-| `CROSSWALK` | Bundaran Penyeberangan Pusat | Jl. Simpang Tengah | Persimpangan | Simpang 4 arah utama penghubung seluruh sektor |
-
----
-
-## 3. Karakter Pemandu: "GANDI"
-- **Kepribadian**: Sangat cerewet, ekspresif, jenaka, panik sekaligus sigap memantau seluruh CCTV perumahan.
-- **Status Suasana Hati**: `CEREWET`, `WASPADA`, `PANIK`, `BANGGA`, `CURIGA` (mengubah warna aksen HUD dan dibacakan via `TextToSpeech` berbahasa Indonesia).
-- **Fungsi**:
-  - **Laporan Jalan + Blok**: Menyebutkan nama jalan dan blok secara spesifik saat penyusup terdeteksi.
-  - **Telemetri Gerbang**: Merayakan penguncian gerbang dan panik saat sensor gerbang terpicu.
-  - **Komentar Regu & Seragam**: Merespons ping regu dan memberi pujian spesial untuk pemakai *Jaket Emas Favorit GANDI*.
-
----
-
-## 4. Sistem Skor & Gudang Seragam
-| ID Seragam | Nama | Harga | Pangkat & Tampilan Peta |
+## 2. Peta Kawasan Bumi Papan Selaras
+| ID | Nama Lokasi | Jalan | Jenis |
 |---|---|---|---|
-| `rookie_cadet` | Seragam Kadet Biru | 0 poin | Kadet — Token biru langit, bingkai putih |
-| `neon_warden` | Penjaga Siber-Neon | 250 poin | Sipir — Token sian neon & visor pemindai |
-| `crimson_marshal` | Marsekal Gerbang Merah | 500 poin | Marsekal — Jaket merah & bingkai emas |
-| `night_owl` | Pengintai Burung Hantu | 800 poin | Pengintai — Optik malam zamrud |
-| `gandi_fanclub` | Jaket Emas Favorit GANDI | 1.200 poin | Kepala Operator — Amber emas + pujian khusus GANDI |
-| `royal_sentinel` | Panglima Agung Kompleks | 2.000 poin | Komandan Utama — Aura ungu-emas prestise |
+| `BLOK_KRISAN` | Blok Krisan | Jl. Krisan Raya | Klaster Hunian Barat Laut |
+| `BLOK_CEMPAKA` | Blok Cempaka | Jl. Cempaka Asri | Klaster Hunian Timur Laut |
+| `BLOK_CEMARA` | Blok Cemara | Jl. Cemara Indah | Kawasan Rindang Barat |
+| `AREA_MASJID` | Area Masjid Agung Selaras | Bundaran Masjid Selaras | Landmark Ikonik Utama (Kubah & Menara) |
+| `BLOK_AKASIA` | Blok Akasia | Jl. Akasia Timur | Klaster Hunian Timur |
+| `BLOK_CAMELIA` | Blok Camelia | Jl. Camelia Barat | Klaster Hunian Barat Daya |
+| `BLOK_FLAMBOYAN` | Blok Flamboyan | Jl. Flamboyan Raya | Klaster Hunian Tenggara |
+| `GERBANG_UTARA` | Gerbang Utama Utara | Jl. Selaras Utara | Portal Pemeriksaan Utara |
+| `GERBANG_SELATAN` | Gerbang Servis Selatan | Jl. Selaras Selatan | Portal Akses Selatan |
 
----
+## 3. Antarmuka (UI / HUD) Ala GTA
+- **Pojok Kiri Bawah**: Mini-Map melingkar bergaya GTA dengan arah hadap pemain, blok perumahan, Masjid Agung, dan penunjuk kompas ke posisi pencuri.
+- **Pojok Kanan Atas**: Timer hitung mundur (`MM:SS`), Poin pemain, notifikasi masuk blok (`"MEMASUKI BLOK ..."`), tombol ganti senjata cepat, dan shortcut `TOKO`.
+- **Pojok Kiri Atas & Tengah**: Bar HP Pemain, Level Armor + persentase reduksi damage, Stamina, dan Bar HP Pencuri.
 
-## 5. Sistem Komunikasi Multiplayer
-- **Walkie-Talkie Push-to-Talk (PTT)**: Menangkap amplitudo mikrofon (`AudioRecord` dengan izin runtime `RECORD_AUDIO` dan fallback aman) serta menyinkronkan `pttActive` ke Firestore agar rekan regu melihat cincin sinyal sian di peta.
-- **Ping Lokasi**: Ketuk peta dalam Mode Ping untuk meletakkan suar `Ada Penyusup`, `Butuh Bantuan`, `Tutup Gerbang`, atau `Sektor Aman`.
-- **Perintah Radio Cepat**: Tombol taktis 1-ketuk dengan tag sektor dan jalan otomatis.
-- **Obrolan Teks Regu Real-Time**: Kanal komunikasi Firestore yang tersinkron langsung bersama siaran GANDI.
+## 4. Toko Baju Armor (Level 1–5) & Toko Senjata
+- **Baju Armor**: Level 1 (10% reduksi) -> Level 2 (28%) -> Level 3 (45%) -> Level 4 (60%) -> Level 5 Titanium MAX (75% reduksi damage).
+- **Senjata Inti**:
+  1. `pistol_9mm` — Pistol Taktis 9mm (24 DMG, mobilitas tinggi)
+  2. `granat_frag` — Granat Ledak MK-II (60 DMG, ledakan area)
+  3. `ak47_assault` — AK-47 Otomatis (22 DMG, tembakan cepat)
+  4. `bazoka_rpg` — Bazoka Peluncur Roket (95 DMG, daya ledak maksimal)
 
----
-
-## 6. Arsitektur Teknis & Struktur Proyek
-- **Klien**: Kotlin + Jetpack Compose (Material 3, `Canvas` peta taktis, `StateFlow` MVVM).
-- **Autentikasi**: Google Sign-In via Jetpack `CredentialManager` (`GetSignInWithGoogleOption`).
-- **Backend Multiplayer (Cloud Firestore)**:
-  - `/users/{userId}` — Profil pribadi, poin, jumlah tangkapan, dan daftar seragam.
-  - `/rooms/{roomId}` — Kode ruang, status gerbang, koordinat/jalan penyusup, mood/kalimat GANDI, skor regu.
-  - `/rooms/{roomId}/players/{playerUid}` — Posisi real-time, peran, seragam, status PTT.
-  - `/rooms/{roomId}/pings/{pingId}` — Suar ping taktis di peta.
-  - `/rooms/{roomId}/messages/{messageId}` — Obrolan regu, radio cepat, log suara, dan laporan GANDI.
+## 5. Arsitektur Teknis
+- `GameModels.kt`: Model Firestore, `EstateWorld`, `UniformCatalog`, `WeaponCatalog`, `AttributeCatalog`, `MissionOutcome`.
+- `World3DRenderer.kt`: Engine 3D/4D Compose Canvas (siklus waktu senja-malam-fajar, bayangan tajam real-time, refleksi genangan jalan & mobil patroli, landmark Masjid Agung, `Particle3D` debu/asap/percikan/ledakan).
+- `Estate3DViewport.kt`: Loop gameplay 60 FPS, fisika tabrakan, pertarungan HP vs HP, timer misi, dan GTA HUD.
+- `BlockWatchRepository.kt` & `BlockWatchViewModel.kt`: Sinkronisasi Cloud Firestore & Google Sign-In (`CredentialManager`).

@@ -75,16 +75,16 @@ fun Character3DPreviewStage(
             drawRect(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        uniform.primaryColor.copy(alpha = 0.25f),
+                        uniform.primaryColor.copy(alpha = 0.28f),
                         Color(0xFF0A111F)
                     ),
                     center = Offset(cx, h * 0.45f),
-                    radius = maxOf(w, h) * 0.7f
+                    radius = maxOf(w, h) * 0.72f
                 )
             )
 
             // 3D Turntable pedestal ellipses
-            val pedW = 128f * scale
+            val pedW = 130f * scale
             val pedH = 32f * scale
             drawOval(
                 color = uniform.trimColor.copy(alpha = 0.22f),
@@ -112,7 +112,7 @@ fun Character3DPreviewStage(
             fun px(x: Float, z: Float): Float = cx + (x * cosY - z * sinY) * scale
             fun py(y: Float, z: Float): Float = baseY - y * scale + z * 0.18f * scale + bobY
 
-            // Cape / High Collar (behind torso when facing front)
+            // Cape / High Collar (behind torso for Armor Lv 4-5)
             if (uniform.hasCapeOrCollar && cosY > -0.6f) {
                 val capePath = Path().apply {
                     moveTo(px(-18f, -6f), py(92f, -6f))
@@ -122,7 +122,7 @@ fun Character3DPreviewStage(
                     close()
                 }
                 drawPath(capePath, uniform.primaryColor.copy(alpha = 0.72f))
-                drawPath(capePath, uniform.trimColor.copy(alpha = 0.6f), style = Stroke(width = 1.6f * scale))
+                drawPath(capePath, uniform.trimColor.copy(alpha = 0.65f), style = Stroke(width = 1.8f * scale))
             }
 
             // Legs & Boots
@@ -132,6 +132,11 @@ fun Character3DPreviewStage(
                 val hip = Offset(px(legX, 0f), py(52f, 0f))
                 val foot = Offset(px(legX * 1.05f, 3f), py(6f, 3f))
                 drawLine(Color(0xFF1E293B), hip, foot, strokeWidth = 11f * scale, cap = StrokeCap.Round)
+                if (uniform.armorLevel >= 3) {
+                    // Knee armor pads for Armor Level 3+
+                    val knee = Offset((hip.x + foot.x) * 0.5f, (hip.y + foot.y) * 0.5f)
+                    drawCircle(uniform.trimColor.copy(alpha = 0.85f), radius = 4.2f * scale, center = knee)
+                }
                 drawRoundRect(
                     color = bootColor,
                     topLeft = Offset(foot.x - 7f * scale, foot.y - 6f * scale),
@@ -146,16 +151,34 @@ fun Character3DPreviewStage(
                 )
             }
 
-            // Torso (3D Jacket / Uniform)
+            // Torso (3D Jacket / Premium Armor)
             val torsoTopLeft = Offset(px(-19f, 0f), py(94f, 0f))
             val torsoW = kotlin.math.abs(px(19f, 0f) - px(-19f, 0f)).coerceAtLeast(18f * scale)
             val torsoH = 42f * scale
             drawRoundRect(
                 color = uniform.primaryColor,
-                topLeft = Offset(cx + sinY * 0f - torsoW / 2f, torsoTopLeft.y),
+                topLeft = Offset(cx - torsoW / 2f, torsoTopLeft.y),
                 size = Size(torsoW, torsoH),
                 cornerRadius = CornerRadius(8f * scale, 8f * scale)
             )
+            // Armor chest plates scaling with armorLevel (Lv 2+)
+            if (uniform.armorLevel >= 2) {
+                val plateW = torsoW * (0.68f + uniform.armorLevel * 0.04f)
+                drawRoundRect(
+                    color = Color(0xFF0F172A).copy(alpha = 0.55f),
+                    topLeft = Offset(cx - plateW / 2f, py(90f, 6f)),
+                    size = Size(plateW, 24f * scale),
+                    cornerRadius = CornerRadius(5f * scale, 5f * scale)
+                )
+                drawRoundRect(
+                    color = uniform.trimColor.copy(alpha = 0.78f),
+                    topLeft = Offset(cx - plateW / 2f, py(90f, 6f)),
+                    size = Size(plateW, 24f * scale),
+                    cornerRadius = CornerRadius(5f * scale, 5f * scale),
+                    style = Stroke(width = (1.2f + uniform.armorLevel * 0.35f) * scale)
+                )
+            }
+
             // Uniform center zip & trim stripe
             val chestCenterX = px(0f, 9f)
             drawLine(
@@ -183,7 +206,7 @@ fun Character3DPreviewStage(
                 )
             }
 
-            // Attribute: Utility Belt (or belt base on all guards)
+            // Utility Belt
             val beltColor = if (attribute.style == AttributeStyle.BELT) attribute.accentColor else uniform.trimColor
             drawRoundRect(
                 color = Color(0xFF0F172A),
@@ -193,12 +216,18 @@ fun Character3DPreviewStage(
             )
             drawCircle(beltColor, radius = 4f * scale, center = Offset(px(0f, 10f), py(54f, 10f)))
 
-            // Shoulder Pads for upgraded uniforms
+            // Shoulder Pads for Armor Level 2+
             if (uniform.hasShoulderPads) {
+                val padR = (6.5f + uniform.armorLevel * 0.7f) * scale
                 listOf(-20f, 20f).forEach { sx ->
                     drawCircle(
                         color = uniform.trimColor,
-                        radius = 7.5f * scale,
+                        radius = padR,
+                        center = Offset(px(sx, 0f), py(91f, 0f))
+                    )
+                    drawCircle(
+                        color = uniform.primaryColor,
+                        radius = padR * 0.65f,
                         center = Offset(px(sx, 0f), py(91f, 0f))
                     )
                 }
@@ -210,18 +239,26 @@ fun Character3DPreviewStage(
             drawLine(uniform.primaryColor, lShoulder, lHand, strokeWidth = 9f * scale, cap = StrokeCap.Round)
             drawCircle(Color(0xFFF1C27D), radius = 4.5f * scale, center = lHand)
 
-            // Head & Hair / Cap
+            // Head & Tactical Helmet / Cap
             val headCenter = Offset(px(0f, 0f), py(110f, 0f))
             drawCircle(Color(0xFFF1C27D), radius = 14f * scale, center = headCenter)
-            // Patrol cap / hair
             drawArc(
-                color = Color(0xFF0F172A),
+                color = if (uniform.armorLevel >= 4) Color(0xFF1E293B) else Color(0xFF0F172A),
                 startAngle = 180f,
                 sweepAngle = 180f,
                 useCenter = true,
                 topLeft = Offset(headCenter.x - 14.5f * scale, headCenter.y - 16f * scale),
                 size = Size(29f * scale, 22f * scale)
             )
+            if (uniform.armorLevel >= 4) {
+                // Helmet trim crest
+                drawLine(
+                    uniform.trimColor,
+                    Offset(headCenter.x - 12f * scale, headCenter.y - 7f * scale),
+                    Offset(headCenter.x + 12f * scale, headCenter.y - 7f * scale),
+                    strokeWidth = 2.5f * scale
+                )
+            }
             // Visor / NVG Goggles Attribute
             if (attribute.style == AttributeStyle.NVG_GOGGLES) {
                 val eyeCenter = Offset(px(0f, 12f), headCenter.y - 1f * scale)
@@ -281,40 +318,55 @@ private fun DrawScope.drawHeldWeaponPreview(
 ) {
     val dir = if (cosY >= 0f) 1f else -1f
     when (weapon.style) {
-        WeaponStyle.BATON -> {
-            val tip = Offset(handPos.x + 14f * dir * scale, handPos.y - 26f * scale)
-            drawLine(weapon.primaryColor, handPos, tip, strokeWidth = 5f * scale, cap = StrokeCap.Round)
-            drawLine(weapon.accentColor, Offset(handPos.x + 8f * dir * scale, handPos.y - 15f * scale), tip, strokeWidth = 5.5f * scale, cap = StrokeCap.Round)
+        WeaponStyle.PISTOL -> {
+            val barrelTip = Offset(handPos.x + 20f * dir * scale, handPos.y - 9f * scale)
+            drawLine(
+                weapon.primaryColor,
+                Offset(handPos.x - 2f * dir * scale, handPos.y - 9f * scale),
+                barrelTip,
+                strokeWidth = 6f * scale,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                Color(0xFF0F172A),
+                handPos,
+                Offset(handPos.x + 2f * dir * scale, handPos.y - 8f * scale),
+                strokeWidth = 5f * scale,
+                cap = StrokeCap.Round
+            )
+            drawCircle(weapon.accentColor, radius = 2.6f * scale, center = barrelTip)
         }
-        WeaponStyle.FLASHLIGHT -> {
-            val head = Offset(handPos.x + 18f * dir * scale, handPos.y - 8f * scale)
-            drawLine(weapon.primaryColor, handPos, head, strokeWidth = 7f * scale, cap = StrokeCap.Round)
-            drawCircle(weapon.accentColor, radius = 5f * scale, center = head)
-            val cone = Path().apply {
-                moveTo(head.x, head.y)
-                lineTo(head.x + 36f * dir * scale, head.y - 18f * scale)
-                lineTo(head.x + 36f * dir * scale, head.y + 10f * scale)
-                close()
-            }
-            drawPath(cone, weapon.accentColor.copy(alpha = 0.22f))
+        WeaponStyle.GRENADE -> {
+            val bodyCenter = Offset(handPos.x + 3f * dir * scale, handPos.y - 5f * scale)
+            drawCircle(weapon.primaryColor, radius = 8.5f * scale, center = bodyCenter)
+            drawCircle(weapon.accentColor, radius = 8.5f * scale, center = bodyCenter, style = Stroke(width = 1.8f * scale))
+            drawLine(
+                Color(0xFFCBD5E1),
+                Offset(bodyCenter.x, bodyCenter.y - 8f * scale),
+                Offset(bodyCenter.x + 5f * dir * scale, bodyCenter.y - 12f * scale),
+                strokeWidth = 2.5f * scale
+            )
         }
-        WeaponStyle.TASER_PISTOL -> {
-            val barrel = Offset(handPos.x + 22f * dir * scale, handPos.y - 7f * scale)
-            drawLine(weapon.primaryColor, Offset(handPos.x, handPos.y - 6f * scale), barrel, strokeWidth = 6.5f * scale, cap = StrokeCap.Round)
-            drawLine(weapon.primaryColor, handPos, Offset(handPos.x + 2f * dir * scale, handPos.y - 7f * scale), strokeWidth = 5.5f * scale)
-            drawCircle(weapon.accentColor, radius = 3.5f * scale, center = barrel)
+        WeaponStyle.AK47 -> {
+            val stock = Offset(handPos.x - 16f * dir * scale, handPos.y - 4f * scale)
+            val muzzle = Offset(handPos.x + 34f * dir * scale, handPos.y - 14f * scale)
+            // Wooden stock & handguard
+            drawLine(weapon.primaryColor, stock, Offset(handPos.x + 10f * dir * scale, handPos.y - 9f * scale), strokeWidth = 6.5f * scale, cap = StrokeCap.Round)
+            // Metal receiver & long barrel
+            drawLine(Color(0xFF334155), Offset(handPos.x - 4f * dir * scale, handPos.y - 7f * scale), muzzle, strokeWidth = 5f * scale, cap = StrokeCap.Round)
+            // Curved banana magazine
+            val magTop = Offset(handPos.x + 8f * dir * scale, handPos.y - 5f * scale)
+            val magBot = Offset(handPos.x + 14f * dir * scale, handPos.y + 8f * scale)
+            drawLine(weapon.accentColor, magTop, magBot, strokeWidth = 4.5f * scale, cap = StrokeCap.Round)
         }
-        WeaponStyle.NET_LAUNCHER -> {
-            val muzzle = Offset(handPos.x + 28f * dir * scale, handPos.y - 9f * scale)
-            drawLine(weapon.primaryColor, Offset(handPos.x - 4f * dir * scale, handPos.y - 6f * scale), muzzle, strokeWidth = 9f * scale, cap = StrokeCap.Round)
-            drawCircle(weapon.accentColor, radius = 6f * scale, center = muzzle, style = Stroke(width = 2.4f * scale))
-        }
-        WeaponStyle.CYBER_CARBINE -> {
-            val stock = Offset(handPos.x - 10f * dir * scale, handPos.y - 4f * scale)
-            val muzzle = Offset(handPos.x + 34f * dir * scale, handPos.y - 11f * scale)
-            drawLine(weapon.primaryColor, stock, muzzle, strokeWidth = 8f * scale, cap = StrokeCap.Round)
-            drawLine(weapon.accentColor, Offset(handPos.x + 6f * dir * scale, handPos.y - 8f * scale), muzzle, strokeWidth = 3f * scale)
-            drawCircle(weapon.accentColor, radius = 4f * scale, center = muzzle)
+        WeaponStyle.BAZOOKA -> {
+            val backEnd = Offset(handPos.x - 24f * dir * scale, handPos.y - 10f * scale)
+            val frontEnd = Offset(handPos.x + 36f * dir * scale, handPos.y - 18f * scale)
+            drawLine(weapon.primaryColor, backEnd, frontEnd, strokeWidth = 11.5f * scale, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + 18f * dir * scale, handPos.y - 15.5f * scale), frontEnd, strokeWidth = 12f * scale)
+            // Warhead nose cone sticking out
+            val nose = Offset(frontEnd.x + 8f * dir * scale, frontEnd.y - 1.5f * scale)
+            drawLine(Color(0xFFFDE047), frontEnd, nose, strokeWidth = 7f * scale, cap = StrokeCap.Round)
         }
     }
 }
@@ -327,7 +379,6 @@ fun UniformVisualBadge(uniform: UniformItem, modifier: Modifier = Modifier) {
         drawRoundRect(Color(0xFF0F172A), cornerRadius = CornerRadius(16f, 16f))
         drawRoundRect(uniform.trimColor.copy(alpha = 0.45f), cornerRadius = CornerRadius(16f, 16f), style = Stroke(2.2f))
 
-        // Stylized 3D Shirt / Jacket silhouette
         val shirt = Path().apply {
             moveTo(w * 0.30f, h * 0.24f)
             lineTo(w * 0.14f, h * 0.40f)
@@ -347,7 +398,14 @@ fun UniformVisualBadge(uniform: UniformItem, modifier: Modifier = Modifier) {
         drawPath(shirt, uniform.primaryColor)
         drawPath(shirt, uniform.trimColor, style = Stroke(width = 2.4f))
         drawLine(uniform.trimColor, Offset(w * 0.50f, h * 0.30f), Offset(w * 0.50f, h * 0.78f), strokeWidth = 2.6f)
-        drawCircle(uniform.trimColor, radius = 4f, center = Offset(w * 0.39f, h * 0.44f))
+        // Armor Level pips at bottom edge
+        for (i in 0 until uniform.armorLevel.coerceAtMost(5)) {
+            drawCircle(
+                color = uniform.trimColor,
+                radius = 3.2f,
+                center = Offset(w * 0.24f + i * (w * 0.13f), h * 0.89f)
+            )
+        }
     }
 }
 
@@ -360,36 +418,26 @@ fun WeaponVisualBadge(weapon: WeaponItem, modifier: Modifier = Modifier) {
         drawRoundRect(weapon.accentColor.copy(alpha = 0.5f), cornerRadius = CornerRadius(16f, 16f), style = Stroke(2.2f))
 
         when (weapon.style) {
-            WeaponStyle.BATON -> {
-                drawLine(weapon.primaryColor, Offset(w * 0.24f, h * 0.76f), Offset(w * 0.76f, h * 0.24f), 9f, cap = StrokeCap.Round)
-                drawLine(weapon.accentColor, Offset(w * 0.46f, h * 0.54f), Offset(w * 0.76f, h * 0.24f), 9.5f, cap = StrokeCap.Round)
+            WeaponStyle.PISTOL -> {
+                drawLine(weapon.primaryColor, Offset(w * 0.24f, h * 0.42f), Offset(w * 0.78f, h * 0.42f), 10f, cap = StrokeCap.Round)
+                drawLine(Color(0xFF334155), Offset(w * 0.30f, h * 0.42f), Offset(w * 0.24f, h * 0.74f), 9f, cap = StrokeCap.Round)
+                drawCircle(weapon.accentColor, radius = 4.5f, center = Offset(w * 0.80f, h * 0.42f))
             }
-            WeaponStyle.FLASHLIGHT -> {
-                drawLine(weapon.primaryColor, Offset(w * 0.20f, h * 0.65f), Offset(w * 0.62f, h * 0.38f), 11f, cap = StrokeCap.Round)
-                drawCircle(weapon.accentColor, radius = 8f, center = Offset(w * 0.64f, h * 0.36f))
-                drawPath(
-                    Path().apply {
-                        moveTo(w * 0.64f, h * 0.36f)
-                        lineTo(w * 0.90f, h * 0.16f)
-                        lineTo(w * 0.90f, h * 0.54f)
-                        close()
-                    },
-                    weapon.accentColor.copy(alpha = 0.32f)
-                )
+            WeaponStyle.GRENADE -> {
+                drawCircle(weapon.primaryColor, radius = w * 0.23f, center = Offset(w * 0.50f, h * 0.56f))
+                drawCircle(weapon.accentColor, radius = w * 0.23f, center = Offset(w * 0.50f, h * 0.56f), style = Stroke(width = 3f))
+                drawLine(Color(0xFFCBD5E1), Offset(w * 0.50f, h * 0.32f), Offset(w * 0.50f, h * 0.22f), 6f)
+                drawCircle(weapon.accentColor, radius = 6f, center = Offset(w * 0.64f, h * 0.26f), style = Stroke(2.5f))
             }
-            WeaponStyle.TASER_PISTOL -> {
-                drawLine(weapon.primaryColor, Offset(w * 0.24f, h * 0.44f), Offset(w * 0.78f, h * 0.44f), 10f, cap = StrokeCap.Round)
-                drawLine(weapon.primaryColor, Offset(w * 0.30f, h * 0.44f), Offset(w * 0.24f, h * 0.74f), 9f, cap = StrokeCap.Round)
-                drawCircle(weapon.accentColor, radius = 5f, center = Offset(w * 0.80f, h * 0.44f))
+            WeaponStyle.AK47 -> {
+                drawLine(weapon.primaryColor, Offset(w * 0.14f, h * 0.64f), Offset(w * 0.52f, h * 0.46f), 10f, cap = StrokeCap.Round)
+                drawLine(Color(0xFF475569), Offset(w * 0.32f, h * 0.55f), Offset(w * 0.86f, h * 0.30f), 7.5f, cap = StrokeCap.Round)
+                drawLine(weapon.accentColor, Offset(w * 0.52f, h * 0.48f), Offset(w * 0.60f, h * 0.74f), 6f, cap = StrokeCap.Round)
             }
-            WeaponStyle.NET_LAUNCHER -> {
-                drawLine(weapon.primaryColor, Offset(w * 0.18f, h * 0.56f), Offset(w * 0.72f, h * 0.36f), 13f, cap = StrokeCap.Round)
-                drawCircle(weapon.accentColor, radius = 9f, center = Offset(w * 0.75f, h * 0.34f), style = Stroke(3f))
-            }
-            WeaponStyle.CYBER_CARBINE -> {
-                drawLine(weapon.primaryColor, Offset(w * 0.14f, h * 0.62f), Offset(w * 0.84f, h * 0.34f), 11f, cap = StrokeCap.Round)
-                drawLine(weapon.accentColor, Offset(w * 0.32f, h * 0.55f), Offset(w * 0.86f, h * 0.33f), 4f)
-                drawCircle(weapon.accentColor, radius = 5.5f, center = Offset(w * 0.85f, h * 0.33f))
+            WeaponStyle.BAZOOKA -> {
+                drawLine(weapon.primaryColor, Offset(w * 0.14f, h * 0.64f), Offset(w * 0.80f, h * 0.32f), 16f, cap = StrokeCap.Round)
+                drawLine(weapon.accentColor, Offset(w * 0.64f, h * 0.40f), Offset(w * 0.82f, h * 0.31f), 16f)
+                drawCircle(Color(0xFFFDE047), radius = 7f, center = Offset(w * 0.86f, h * 0.29f))
             }
         }
     }

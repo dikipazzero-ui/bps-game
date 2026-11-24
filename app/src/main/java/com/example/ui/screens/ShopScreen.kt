@@ -79,8 +79,8 @@ fun ShopScreen(
     val points = profile?.points ?: 0L
     val unlockedUniforms = profile?.unlockedUniformIds ?: listOf("rookie_cadet")
     val equippedUniformId = profile?.equippedUniformId ?: "rookie_cadet"
-    val unlockedWeapons = profile?.unlockedWeaponIds ?: listOf("baton_standard")
-    val equippedWeaponId = profile?.equippedWeaponId ?: "baton_standard"
+    val unlockedWeapons = profile?.unlockedWeaponIds ?: listOf("pistol_9mm")
+    val equippedWeaponId = WeaponCatalog.byId(profile?.equippedWeaponId ?: "pistol_9mm").id
     val unlockedAttributes = profile?.unlockedAttributeIds ?: listOf("utility_belt")
     val equippedAttributeId = profile?.equippedAttributeId ?: "utility_belt"
 
@@ -198,28 +198,28 @@ fun ShopScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "KEBUTUHAN PATROLI",
+                                    text = "KEBUTUHAN TEMPUR",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.secondary,
                                     fontWeight = FontWeight.Bold
+                                )
+                                NeedStatRow(
+                                    label = "Proteksi Armor (Lv.${previewUniform.armorLevel})",
+                                    progress = (previewUniform.damageReduction / 0.75f).coerceIn(0.15f, 1f),
+                                    valueText = "-${(previewUniform.damageReduction * 100).toInt()}% DMG",
+                                    color = Color(0xFF10B981)
+                                )
+                                NeedStatRow(
+                                    label = "Daya Serang Senjata",
+                                    progress = (previewWeapon.damage / 95f).coerceIn(0.22f, 1f),
+                                    valueText = "${previewWeapon.damage} DMG",
+                                    color = Color(0xFFF59E0B)
                                 )
                                 NeedStatRow(
                                     label = "Kecepatan Lari",
                                     progress = ((previewAttribute.speedMultiplier - 0.8f) / 0.7f).coerceIn(0.25f, 1f),
                                     valueText = "${(previewAttribute.speedMultiplier * 100).toInt()}%",
                                     color = Color(0xFF38BDF8)
-                                )
-                                NeedStatRow(
-                                    label = "Jangkauan Senjata",
-                                    progress = (previewWeapon.rangeNorm / 0.52f).coerceIn(0.25f, 1f),
-                                    valueText = "${(previewWeapon.rangeNorm * 100).toInt()}m",
-                                    color = Color(0xFFF59E0B)
-                                )
-                                NeedStatRow(
-                                    label = "Daya Tahan Stamina",
-                                    progress = (1.2f - previewAttribute.staminaDrainFactor * 0.7f).coerceIn(0.3f, 1f),
-                                    valueText = "${((1f / previewAttribute.staminaDrainFactor) * 100).toInt()}%",
-                                    color = Color(0xFF10B981)
                                 )
                                 NeedStatRow(
                                     label = "Visibilitas Malam",
@@ -308,7 +308,9 @@ fun ShopScreen(
 
                         ShopItemCard(
                             title = weapon.name,
-                            subtitle = "${weapon.categoryTag} • Lumpuh ${weapon.stunSeconds.toInt()} dtk (+${weapon.bonusPoints} Poin)",
+                            subtitle = "${weapon.categoryTag} • ${weapon.damage} DMG" +
+                                (if (weapon.aoeRadius > 0f) " (Area)" else "") +
+                                (if (weapon.bonusPoints > 0) " • +${weapon.bonusPoints} Poin" else ""),
                             description = weapon.description,
                             accentColor = weapon.accentColor,
                             price = weapon.price,

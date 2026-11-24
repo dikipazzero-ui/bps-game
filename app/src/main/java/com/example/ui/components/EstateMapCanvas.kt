@@ -118,10 +118,10 @@ fun EstateMapCanvas(
             // 3. Paved Residential Streets
             drawStreets(w, h, textMeasurer)
 
-            // 4. Open Green Parks (Willow Central Park & Moonlight Playground)
+            // 4. Open Plaza & Mosque Courtyard (Area Masjid Agung Selaras)
             drawParks(w, h, textMeasurer)
 
-            // 5. Residential Complexes (Blocks A, B, C, D)
+            // 5. Residential Complexes (Krisan, Cempaka, Cemara, Akasia, Camelia, Flamboyan)
             drawBlocks(w, h, textMeasurer)
 
             // 6. North Main Gate & South Service Portal
@@ -279,102 +279,78 @@ private fun DrawScope.drawStreets(w: Float, h: Float, textMeasurer: TextMeasurer
     val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 12f), 0f)
     val stripeColor = Color(0xFF475569)
 
-    // Oakridge Blvd (Top horizontal)
-    drawRect(roadColor, Offset(w * 0.08f, h * 0.14f), Size(w * 0.84f, h * 0.055f))
-    // Sundown Way (Bottom horizontal)
-    drawRect(roadColor, Offset(w * 0.08f, h * 0.82f), Size(w * 0.84f, h * 0.055f))
-    // Lantern Lane (Left vertical)
-    drawRect(roadColor, Offset(w * 0.08f, h * 0.14f), Size(w * 0.055f, h * 0.735f))
-    // Crescent Drive (Right vertical)
-    drawRect(roadColor, Offset(w * 0.865f, h * 0.14f), Size(w * 0.055f, h * 0.735f))
-    // Central Avenue (Vertical spine)
-    drawRect(roadColor, Offset(w * 0.465f, h * 0.08f), Size(w * 0.07f, h * 0.84f))
-    // Crosswalk Avenue (Horizontal mid)
-    drawRect(roadColor, Offset(w * 0.08f, h * 0.345f), Size(w * 0.84f, h * 0.05f))
+    drawRect(roadColor, Offset(w * 0.06f, h * 0.265f), Size(w * 0.88f, h * 0.06f))
+    drawRect(roadColor, Offset(w * 0.06f, h * 0.675f), Size(w * 0.88f, h * 0.06f))
+    drawRect(roadColor, Offset(w * 0.06f, h * 0.07f), Size(w * 0.045f, h * 0.86f))
+    drawRect(roadColor, Offset(w * 0.895f, h * 0.07f), Size(w * 0.045f, h * 0.86f))
+    drawRect(roadColor, Offset(w * 0.31f, h * 0.07f), Size(w * 0.06f, h * 0.86f))
+    drawRect(roadColor, Offset(w * 0.63f, h * 0.07f), Size(w * 0.06f, h * 0.86f))
+    drawRect(roadColor, Offset(w * 0.46f, h * 0.06f), Size(w * 0.08f, h * 0.88f))
+    drawRect(roadColor, Offset(w * 0.26f, h * 0.47f), Size(w * 0.48f, h * 0.06f))
 
-    // Road center stripes
-    drawLine(stripeColor, Offset(w * 0.10f, h * 0.168f), Offset(w * 0.90f, h * 0.168f), 2f, pathEffect = dashEffect)
-    drawLine(stripeColor, Offset(w * 0.10f, h * 0.848f), Offset(w * 0.90f, h * 0.848f), 2f, pathEffect = dashEffect)
-    drawLine(stripeColor, Offset(w * 0.50f, h * 0.11f), Offset(w * 0.50f, h * 0.89f), 2f, pathEffect = dashEffect)
+    drawLine(stripeColor, Offset(w * 0.08f, h * 0.295f), Offset(w * 0.92f, h * 0.295f), 2f, pathEffect = dashEffect)
+    drawLine(stripeColor, Offset(w * 0.08f, h * 0.705f), Offset(w * 0.92f, h * 0.705f), 2f, pathEffect = dashEffect)
+    drawLine(stripeColor, Offset(w * 0.50f, h * 0.08f), Offset(w * 0.50f, h * 0.92f), 2f, pathEffect = dashEffect)
 
-    // Street Name Micro-Labels
     val streetStyle = TextStyle(
         fontFamily = JetBrainsMonoFontFamily,
         fontSize = 8.sp,
         color = Color(0xFF94A3B8)
     )
-    drawText(textMeasurer.measure("JL. OAKRIDGE", streetStyle), topLeft = Offset(w * 0.58f, h * 0.152f))
-    drawText(textMeasurer.measure("JL. SENJA RAYA", streetStyle), topLeft = Offset(w * 0.58f, h * 0.832f))
+    drawText(textMeasurer.measure("BUMI PAPAN SELARAS", streetStyle), topLeft = Offset(w * 0.56f, h * 0.282f))
 }
 
 private fun DrawScope.drawParks(w: Float, h: Float, textMeasurer: TextMeasurer) {
-    // Taman Pusat Willow
     drawRoundRect(
-        color = Color(0xFF064E3B).copy(alpha = 0.72f),
-        topLeft = Offset(w * 0.34f, h * 0.45f),
-        size = Size(w * 0.32f, h * 0.25f),
-        cornerRadius = CornerRadius(24f, 24f)
+        color = Color(0xFF065F46).copy(alpha = 0.68f),
+        topLeft = Offset(w * 0.40f, h * 0.40f),
+        size = Size(w * 0.20f, h * 0.20f),
+        cornerRadius = CornerRadius(18f, 18f)
     )
     drawRoundRect(
-        color = Color(0xFF10B981).copy(alpha = 0.5f),
-        topLeft = Offset(w * 0.34f, h * 0.45f),
-        size = Size(w * 0.32f, h * 0.25f),
+        color = Color(0xFFFDE047).copy(alpha = 0.65f),
+        topLeft = Offset(w * 0.44f, h * 0.44f),
+        size = Size(w * 0.12f, h * 0.12f),
         cornerRadius = CornerRadius(24f, 24f),
-        style = Stroke(width = 2f)
+        style = Stroke(width = 2.5f)
     )
-    // Air mancur taman
-    drawCircle(Color(0xFF0EA5E9).copy(alpha = 0.5f), radius = 16f, center = Offset(w * 0.50f, h * 0.575f))
-
-    // Taman Bermain Rembulan (Barat)
-    drawRoundRect(
-        color = Color(0xFF065F46).copy(alpha = 0.55f),
-        topLeft = Offset(w * 0.15f, h * 0.43f),
-        size = Size(w * 0.14f, h * 0.16f),
-        cornerRadius = CornerRadius(14f, 14f)
+    val label = textMeasurer.measure(
+        "AREA MASJID",
+        TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color(0xFFFDE047))
     )
-
-    val parkLabel = textMeasurer.measure(
-        "TAMAN WILLOW",
-        TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color(0xFF6EE7B7))
-    )
-    drawText(parkLabel, topLeft = Offset(w * 0.50f - parkLabel.size.width / 2f, h * 0.635f))
+    drawText(label, topLeft = Offset(w * 0.50f - label.size.width / 2f, h * 0.575f))
 }
 
 private fun DrawScope.drawBlocks(w: Float, h: Float, textMeasurer: TextMeasurer) {
-    val blockDefs = listOf(
-        Triple("BLOK A", Offset(w * 0.16f, h * 0.21f), Color(0xFF1E3A5F)),
-        Triple("BLOK B", Offset(w * 0.65f, h * 0.21f), Color(0xFF1E3A5F)),
-        Triple("BLOK C", Offset(w * 0.16f, h * 0.67f), Color(0xFF1E3A5F)),
-        Triple("BLOK D", Offset(w * 0.65f, h * 0.67f), Color(0xFF1E3A5F))
-    )
-    val blockSize = Size(w * 0.19f, h * 0.115f)
     val style = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 10.sp,
+        fontSize = 8.sp,
         color = Color(0xFFE2E8F0)
     )
 
-    blockDefs.forEach { (label, topLeft, fill) ->
+    EstateWorld.buildings.filter { !it.isMosque }.forEach { b ->
+        val topLeft = Offset(b.minX * w, b.minY * h)
+        val bSize = Size((b.maxX - b.minX) * w, (b.maxY - b.minY) * h)
         drawRoundRect(
-            color = fill,
+            color = b.roofColor,
             topLeft = topLeft,
-            size = blockSize,
-            cornerRadius = CornerRadius(12f, 12f)
+            size = bSize,
+            cornerRadius = CornerRadius(10f, 10f)
         )
         drawRoundRect(
-            color = Color(0xFF38BDF8).copy(alpha = 0.35f),
+            color = b.accentColor.copy(alpha = 0.55f),
             topLeft = topLeft,
-            size = blockSize,
-            cornerRadius = CornerRadius(12f, 12f),
+            size = bSize,
+            cornerRadius = CornerRadius(10f, 10f),
             style = Stroke(width = 2f)
         )
-        val measured = textMeasurer.measure(label, style)
+        val measured = textMeasurer.measure(b.label.removePrefix("BLOK "), style)
         drawText(
             measured,
             topLeft = Offset(
-                topLeft.x + (blockSize.width - measured.size.width) / 2f,
-                topLeft.y + (blockSize.height - measured.size.height) / 2f
+                topLeft.x + (bSize.width - measured.size.width) / 2f,
+                topLeft.y + (bSize.height - measured.size.height) / 2f
             )
         )
     }

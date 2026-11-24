@@ -61,19 +61,19 @@ fun GameDesignScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "BPSGIM // DOKUMEN DESAIN GAME",
+                            text = "BPSGIM // BUMI PAPAN SELARAS",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Operasi Keamanan Emerald Crest",
+                            text = "Operasi Keamanan Bumi Papan Selaras",
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Patroli perumahan multiplayer & koordinasi taktis berbasis Jetpack Compose + Cloud Firestore.",
+                            text = "Game aksi patroli keamanan 3D/4D bergaya GTA dengan HUD taktis, baku tembak real-time, Toko Armor Level 1–5 & Senjata, serta multiplayer Cloud Firestore.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -84,13 +84,13 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.SportsEsports,
-                    title = "1. Alur Permainan 3D Utama",
+                    title = "1. Alur State & Pertarungan (Gaya GTA)",
                     bullets = listOf(
-                        "Masuk ke Ruang Patroli Kompleks (sendiri atau regu via Kode Ruang 6 karakter).",
-                        "Kendalikan karakter Penjaga 3D secara bebas menggunakan Joystick Analog di kiri layar & geser layar untuk memutar kamera 3D!",
-                        "Gunakan tombol LARI (memakai Stamina) dan tombol AKSI untuk menembakkan/mengayunkan senjata yang dipegang guna melumpuhkan penyusup.",
-                        "Kunci Gerbang Utama Utara atau Portal Servis Selatan untuk memotong rute kabur penyusup, lalu tekan TANGKAP!",
-                        "Belanjakan poin di Gudang 3D untuk membeli Baju Seragam, Senjata Dipegang, dan Atribut Kebutuhan patroli."
+                        "Alur State: Menu Markas -> Patroli / Misi (Timer 02:00) -> Pertarungan (Baku Tembak HP vs HP) -> Menang (+Poin) / Kalah (Wasted / Time Up) -> Toko 3D -> Misi Berikutnya.",
+                        "HUD Pojok Kiri Bawah: Mini-Map melingkar ala GTA dengan arah hadap pemain, blok perumahan, ikon Masjid Agung, dan penunjuk arah pencuri + Joystick Analog di atasnya.",
+                        "HUD Pojok Kanan Atas: Timer hitung mundur misi, Poin pemain, notifikasi blok ('MEMASUKI BLOK CEMARA'), tombol ganti senjata cepat, dan pintasan TOKO.",
+                        "HUD Kiri Atas & Tengah: Bar Nyawa (HP), Level Armor & reduksi damage, Stamina, serta Bar Nyawa Pencuri saat duel berlangsung.",
+                        "Visual 4D Realistis: Transisi cahaya senja–malam–fajar, bayangan tajam dinamis, pantulan jalan basah & mobil patroli, debu langkah kaki, asap, percikan peluru, dan ledakan partikel."
                     )
                 )
             }
@@ -98,7 +98,7 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.Map,
-                    title = "2. Peta Kawasan Perumahan (9 Sektor)",
+                    title = "2. Peta Kawasan Bumi Papan Selaras (9 Zona)",
                     bullets = EstateWorld.sectors.map { s ->
                         "${s.shortCode} • ${s.name} (${s.streetName}): ${s.description}"
                     }
@@ -107,12 +107,23 @@ fun GameDesignScreen(
 
             item {
                 GddSectionCard(
-                    icon = Icons.Filled.Campaign,
-                    title = "3. Karakter Pemandu GANDI",
+                    icon = Icons.Filled.Checkroom,
+                    title = "3. Toko Baju Armor (Lv.1–5), Senjata & Atribut",
                     bullets = listOf(
-                        "Kepribadian: Cerewet, penuh semangat, ekspresif, dan proaktif memantau CCTV kompleks.",
-                        "Suasana Hati: CEREWET, WASPADA, PANIK, BANGGA, CURIGA — tampil dinamis di layar patroli.",
-                        "Fungsi: Melaporkan nama jalan & blok lokasi penyusup, status gerbang, memuji penangkapan, dan merespons ping regu."
+                        "Baju Armor Premium (Level 1 hingga 5): Meredam damage tembakan pencuri mulai dari 10% (Level 1) hingga 75% (Level 5 Titanium MAX).",
+                        "4 Senjata Inti: Pistol Taktis 9mm (24 DMG, lincah), Granat Ledak MK-II (60 DMG Area), AK-47 Otomatis (22 DMG tembakan cepat), dan Bazoka Peluncur Roket (95 DMG daya ledak maksimal).",
+                        "Atribut Kebutuhan (5 pilihan): Sabuk Utilitas, Sepatu Turbo (+38% lari), Pelindung Stamina (-50% drain), Kacamata Malam NVG, dan Drone Pemindai Mini."
+                    )
+                )
+            }
+
+            item {
+                GddSectionCard(
+                    icon = Icons.Filled.Campaign,
+                    title = "4. Operator GANDI & Radio Regu",
+                    bullets = listOf(
+                        "GANDI memantau seluruh blok Bumi Papan Selaras dan menyiarkan lokasi pencuri beserta mood dinamis (CEREWET, WASPADA, PANIK, BANGGA, CURIGA).",
+                        "Push-to-Talk (PTT), Ping Lokasi 3D, dan Perintah Radio Cepat 1-ketuk tersinkron secara real-time antaranggota regu."
                     )
                 )
             }
@@ -120,24 +131,10 @@ fun GameDesignScreen(
             item {
                 GddSectionCard(
                     icon = Icons.Filled.Forum,
-                    title = "4. Sistem Komunikasi Multiplayer",
+                    title = "5. Sistem Komunikasi & Kunci Gerbang",
                     bullets = listOf(
-                        "Radio Push-to-Talk (PTT): Menangkap amplitudo mikrofon (AudioRecord) dan menyalakan cincin sinyal sian di dunia 3D.",
-                        "Perintah Radio Cepat: Tombol 1-ketuk (Kepung Gerbang U, Butuh Bantuan, Maling Terlihat, Kunci Portal Selatan) dengan tag sektor otomatis.",
-                        "Ping Lokasi: Ketuk Mini-Radar dalam Mode Ping untuk memasang pilar suar 3D PENYUSUP, BUTUH BANTUAN, TUTUP GERBANG, atau AMAN.",
-                        "Obrolan Regu Real-Time: Aliran pesan Firestore sinkron langsung dengan laporan GANDI."
-                    )
-                )
-            }
-
-            item {
-                GddSectionCard(
-                    icon = Icons.Filled.Checkroom,
-                    title = "5. Gudang 3D: Baju, Senjata & Atribut",
-                    bullets = listOf(
-                        "Baju & Seragam (6 pilihan): Mengubah tampilan pakaian, pelindung bahu, jubah karakter 3D & bonus poin tangkap.",
-                        "Senjata Dipegang (5 pilihan): Tongkat Patroli, Senter Kejut Pro, Pistol Bius Taser X2, Peluncur Jaring, hingga Senapan Pulsa Siber yang terlihat di tangan 3D!",
-                        "Atribut Kebutuhan (5 pilihan): Sabuk Utilitas, Sepatu Turbo (lari cepat), Rompi Kevlar (hemat stamina), Helm NVG (terangkan malam 3D), dan Drone Mini (perluas radius tangkap)."
+                        "Kunci Gerbang Utara atau Gerbang Selatan untuk memutus pelarian pencuri dan mendapatkan bonus +50 Poin Patroli.",
+                        "Obrolan Regu Real-Time di panel kanan/bawah tetap aktif selama misi berlangsung."
                     )
                 )
             }
@@ -148,9 +145,8 @@ fun GameDesignScreen(
                     title = "6. Arsitektur Teknis",
                     bullets = listOf(
                         "Autentikasi: Google Sign-In via Jetpack Credential Manager (GetSignInWithGoogleOption).",
-                        "Backend: Cloud Firestore Enterprise (koleksi users/{uid}, rooms/{roomId}, serta subkoleksi players/, pings/, messages/).",
-                        "Keamanan: Validasi skema zero-trust, akses subkoleksi khusus anggota regu, log obrolan/ping permanen.",
-                        "Klien: MVVM dengan StateFlow, peta taktis Jetpack Compose Canvas, dan suara TextToSpeech GANDI."
+                        "Backend: Cloud Firestore (users/{uid}, rooms/{roomId}, players/, pings/, messages/).",
+                        "Mesin 3D/4D Klien: World3DRenderer & Estate3DViewport di Jetpack Compose Canvas (60 FPS physics, partikel, bayangan dinamis, dan state machine misi)."
                     )
                 )
             }

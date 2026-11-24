@@ -169,7 +169,10 @@ fun BlockWatchRoot(
                 onSendRadio = { cmd -> viewModel.sendQuickRadio(cmd) },
                 onSendChat = { msg -> viewModel.sendSquadChat(msg) },
                 onSetPtt = { active, hasPerm -> viewModel.setPttTransmitting(active, hasPerm) },
-                onToggleVoice = { enabled -> viewModel.toggleVoiceSetting(enabled) }
+                onToggleVoice = { enabled -> viewModel.toggleVoiceSetting(enabled) },
+                onMissionVictory = { bonus, wave -> viewModel.onMissionVictory(bonus, wave) },
+                onSwitchWeapon = { wpnId -> viewModel.quickSwitchWeapon(wpnId) },
+                onOpenShop = { viewModel.openShopFromRoom() }
             )
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -297,7 +300,7 @@ fun BlockWatchRoot(
                             onPurchaseOrEquipUniform = { uniformId -> viewModel.purchaseOrEquipUniform(uniformId) },
                             onPurchaseOrEquipWeapon = { weaponId -> viewModel.purchaseOrEquipWeapon(weaponId) },
                             onPurchaseOrEquipAttribute = { attrId -> viewModel.purchaseOrEquipAttribute(attrId) },
-                            onBack = { viewModel.navigateTo(AppScreen.LOBBY) }
+                            onBack = { viewModel.closeShop() }
                         )
                         AppScreen.FIELD_GUIDE -> GameDesignScreen(
                             onBack = { viewModel.navigateTo(AppScreen.LOBBY) }

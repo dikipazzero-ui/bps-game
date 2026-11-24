@@ -185,8 +185,8 @@ class BlockWatchRepository(
                 if (rawData != null && (!rawData.containsKey("equippedWeaponId") || !rawData.containsKey("equippedAttributeId"))) {
                     docRef.update(
                         mapOf(
-                            "equippedWeaponId" to "baton_standard",
-                            "unlockedWeaponIds" to listOf("baton_standard"),
+                            "equippedWeaponId" to "pistol_9mm",
+                            "unlockedWeaponIds" to listOf("pistol_9mm"),
                             "equippedAttributeId" to "utility_belt",
                             "unlockedAttributeIds" to listOf("utility_belt"),
                             "updatedAt" to FieldValue.serverTimestamp()
@@ -197,7 +197,21 @@ class BlockWatchRepository(
                     if (migrated != null) return Result.success(migrated)
                 }
                 val existing = snap.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-                if (existing != null) return Result.success(existing)
+                if (existing != null) {
+                    val normWpn = WeaponCatalog.byId(existing.equippedWeaponId).id
+                    val normUnlocked = existing.unlockedWeaponIds.map { WeaponCatalog.byId(it).id }.distinct()
+                    if (normWpn != existing.equippedWeaponId || normUnlocked != existing.unlockedWeaponIds) {
+                        docRef.update(
+                            mapOf(
+                                "equippedWeaponId" to normWpn,
+                                "unlockedWeaponIds" to normUnlocked,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        ).await()
+                        return Result.success(existing.copy(equippedWeaponId = normWpn, unlockedWeaponIds = normUnlocked))
+                    }
+                    return Result.success(existing)
+                }
             }
             val safeName = (rawDisplayName?.trim()?.takeIf { it.isNotEmpty() } ?: "Penjaga_${uid.take(4)}").take(40)
             val payload = mapOf(
@@ -207,8 +221,8 @@ class BlockWatchRepository(
                 "apprehensions" to 0L,
                 "equippedUniformId" to "rookie_cadet",
                 "unlockedUniformIds" to listOf("rookie_cadet"),
-                "equippedWeaponId" to "baton_standard",
-                "unlockedWeaponIds" to listOf("baton_standard"),
+                "equippedWeaponId" to "pistol_9mm",
+                "unlockedWeaponIds" to listOf("pistol_9mm"),
                 "equippedAttributeId" to "utility_belt",
                 "unlockedAttributeIds" to listOf("utility_belt"),
                 "voiceEnabled" to true,
@@ -240,10 +254,10 @@ class BlockWatchRepository(
         val path = "rooms/$roomCode"
         return try {
             val uid = requireUserId()
-            val cleanTitle = titleInput.trim().ifEmpty { "Patroli Malam Emerald Crest" }.take(50).let {
-                if (it.length < 3) "Patroli Kompleks" else it
+            val cleanTitle = titleInput.trim().ifEmpty { "Patroli Bumi Papan Selaras" }.take(50).let {
+                if (it.length < 3) "Patroli Selaras" else it
             }
-            val startThiefSector = EstateWorld.byId("BLOCK_B")
+            val startThiefSector = EstateWorld.byId("BLOK_CEMARA")
             val welcome = GandiDispatcher.shiftWelcome(profile.displayName, roomCode)
 
             val roomPayload = mapOf(
@@ -268,18 +282,18 @@ class BlockWatchRepository(
             )
             db.collection("rooms").document(roomCode).set(roomPayload).await()
 
-            val startSector = EstateWorld.byId("GATE_NORTH")
+            val startSector = EstateWorld.byId("AREA_MASJID")
             val playerPayload = mapOf(
                 "userId" to uid,
                 "displayName" to profile.displayName.take(40),
                 "role" to PlayerRole.GUARD.name,
                 "uniformId" to profile.equippedUniformId,
-                "weaponId" to profile.equippedWeaponId,
+                "weaponId" to WeaponCatalog.byId(profile.equippedWeaponId).id,
                 "attributeId" to profile.equippedAttributeId,
                 "sectorId" to startSector.id,
                 "posX" to startSector.normX.toDouble(),
                 "posY" to startSector.normY.toDouble(),
-                "facingDeg" to 180.0,
+                "facingDeg" to 0.0,
                 "pttActive" to false,
                 "roomScore" to 0L,
                 "createdAt" to FieldValue.serverTimestamp(),
@@ -335,19 +349,19 @@ class BlockWatchRepository(
             val playerRef = roomRef.collection("players").document(uid)
             val playerSnap = playerRef.get().await()
             if (!playerSnap.exists()) {
-                val startSector = EstateWorld.byId("GATE_NORTH")
+                val startSector = EstateWorld.byId("AREA_MASJID")
                 playerRef.set(
                     mapOf(
                         "userId" to uid,
                         "displayName" to profile.displayName.take(40),
                         "role" to PlayerRole.GUARD.name,
                         "uniformId" to profile.equippedUniformId,
-                        "weaponId" to profile.equippedWeaponId,
+                        "weaponId" to WeaponCatalog.byId(profile.equippedWeaponId).id,
                         "attributeId" to profile.equippedAttributeId,
                         "sectorId" to startSector.id,
                         "posX" to startSector.normX.toDouble(),
                         "posY" to startSector.normY.toDouble(),
-                        "facingDeg" to 180.0,
+                        "facingDeg" to 0.0,
                         "pttActive" to false,
                         "roomScore" to 0L,
                         "createdAt" to FieldValue.serverTimestamp(),
@@ -358,7 +372,7 @@ class BlockWatchRepository(
                 playerRef.update(
                     mapOf(
                         "uniformId" to profile.equippedUniformId,
-                        "weaponId" to profile.equippedWeaponId,
+                        "weaponId" to WeaponCatalog.byId(profile.equippedWeaponId).id,
                         "attributeId" to profile.equippedAttributeId,
                         "displayName" to profile.displayName.take(40),
                         "updatedAt" to FieldValue.serverTimestamp()
@@ -586,7 +600,8 @@ class BlockWatchRepository(
     suspend fun apprehendThief(
         roomId: String,
         room: PatrolRoom,
-        profile: UserProfile
+        profile: UserProfile,
+        bonusExtra: Long = 0L
     ): Result<Long> {
         val path = "rooms/$roomId"
         return try {
@@ -595,7 +610,7 @@ class BlockWatchRepository(
             val gateBonus = if (room.northGateStatus == GateStatus.LOCKED.name || room.southGateStatus == GateStatus.LOCKED.name) 50L else 0L
             val uniformBonus = if (profile.equippedUniformId == "gandi_fanclub" || profile.equippedUniformId == "royal_sentinel") 25L else 0L
             val weaponBonus = WeaponCatalog.byId(profile.equippedWeaponId).bonusPoints
-            val earned = 100L + gateBonus + uniformBonus + weaponBonus
+            val earned = 120L + gateBonus + uniformBonus + weaponBonus + bonusExtra.coerceIn(0L, 250L)
 
             // Respawn next intruder at a different sector
             val candidates = EstateWorld.sectors.filter { it.id != sector.id }
@@ -658,8 +673,8 @@ class BlockWatchRepository(
             val currentSector = EstateWorld.byId(currentRoom.activeThiefSectorId)
             val availableNeighbors = currentSector.neighbors.filter { neighborId ->
                 when (neighborId) {
-                    "GATE_NORTH" -> currentRoom.northGateStatus != GateStatus.LOCKED.name
-                    "GATE_SOUTH" -> currentRoom.southGateStatus != GateStatus.LOCKED.name
+                    "GERBANG_UTARA", "GATE_NORTH" -> currentRoom.northGateStatus != GateStatus.LOCKED.name
+                    "GERBANG_SELATAN", "GATE_SOUTH" -> currentRoom.southGateStatus != GateStatus.LOCKED.name
                     else -> true
                 }
             }
@@ -683,9 +698,9 @@ class BlockWatchRepository(
                 "gandiMood" to gandi.mood.name,
                 "updatedAt" to FieldValue.serverTimestamp()
             )
-            if (nextSector.id == "GATE_NORTH" && currentRoom.northGateStatus == GateStatus.OPEN.name) {
+            if (nextSector.id == "GERBANG_UTARA" && currentRoom.northGateStatus == GateStatus.OPEN.name) {
                 updates["northGateStatus"] = GateStatus.ALERT.name
-            } else if (nextSector.id == "GATE_SOUTH" && currentRoom.southGateStatus == GateStatus.OPEN.name) {
+            } else if (nextSector.id == "GERBANG_SELATAN" && currentRoom.southGateStatus == GateStatus.OPEN.name) {
                 updates["southGateStatus"] = GateStatus.ALERT.name
             }
 
@@ -813,6 +828,30 @@ class BlockWatchRepository(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             ).await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun syncPlayerLoadoutInRoom(roomId: String, profile: UserProfile): Result<Unit> {
+        var path = "rooms/$roomId/players"
+        return try {
+            val uid = requireUserId()
+            path = "rooms/$roomId/players/$uid"
+            db.collection("rooms").document(roomId)
+                .collection("players").document(uid)
+                .update(
+                    mapOf(
+                        "uniformId" to profile.equippedUniformId,
+                        "weaponId" to WeaponCatalog.byId(profile.equippedWeaponId).id,
+                        "attributeId" to profile.equippedAttributeId,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

@@ -108,7 +108,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
             ) {
                 Image(
                     painter = painterResource(id = com.example.R.drawable.img_estate_banner),
-                    contentDescription = "Pemandangan patroli perumahan Emerald Crest",
+                    contentDescription = "Pemandangan patroli perumahan Bumi Papan Selaras",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -182,7 +182,7 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "\"Ayo cepat absen, komandan baru! Ada yang lupa menutup Gerbang Utama Utara dan barusan ada jejak sepatu di dekat Blok B!\"",
+                            text = "\"Ayo cepat absen, komandan! Penyusup baru saja terlihat melintasi Blok Cemara dekat Area Masjid Bumi Papan Selaras!\"",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )

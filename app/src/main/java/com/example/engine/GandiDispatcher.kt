@@ -95,7 +95,7 @@ object GandiDispatcher {
     }
 
     fun shiftWelcome(guardName: String, roomCode: String): GandiBroadcast = GandiBroadcast(
-        line = "Selamat bertugas di Shift $roomCode, $guardName! Ketuk jalan atau blok di peta untuk patroli, pasang ping, atau tekan PTT. Jaga Emerald Crest tetap aman!",
+        line = "Selamat bertugas di Shift $roomCode, $guardName! Amankan kawasan Bumi Papan Selaras dari Blok Krisan hingga Area Masjid sebelum waktu misi habis!",
         mood = GandiMood.CHATTY
     )
 }
