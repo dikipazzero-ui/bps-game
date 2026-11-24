@@ -128,7 +128,7 @@ fun Estate3DViewport(
     onExitRoom: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val textMeasurer = rememberTextMeasurer()
+    val textMeasurer = rememberTextMeasurer(cacheSize = 64)
     val soundEngine = remember { WeaponSoundEngine() }
     DisposableEffect(Unit) {
         onDispose { soundEngine.release() }
@@ -1301,6 +1301,7 @@ private fun VirtualJoystick3D(
                     val cx = size.width / 2f
                     val cy = size.height / 2f
                     val maxR = minOf(cx, cy) * 0.8f
+                    if (maxR <= 1f) return@detectDragGestures
                     val dx = change.position.x - cx
                     val dy = change.position.y - cy
                     val dist = hypot(dx, dy).coerceAtLeast(0.001f)
@@ -1313,6 +1314,7 @@ private fun VirtualJoystick3D(
             val cx = size.width / 2f
             val cy = size.height / 2f
             val outerR = minOf(cx, cy) * 0.92f
+            if (outerR <= 1f) return@Canvas
             val knobR = outerR * 0.40f
             val travel = outerR * 0.56f
 
@@ -1340,7 +1342,10 @@ private fun MiniRadarOverlay(
     onRadarTap: (Float, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val textMeasurer = rememberTextMeasurer()
+    val textMeasurer = rememberTextMeasurer(cacheSize = 16)
+    val prisonTagLayout = remember(textMeasurer) {
+        textMeasurer.measure("P", TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold))
+    }
     val radarZoomRadius = 0.28f
 
     Box(
@@ -1354,6 +1359,7 @@ private fun MiniRadarOverlay(
             )
             .pointerInput(isPingMode, localX, localY) {
                 detectTapGestures { offset ->
+                    if (size.width <= 0 || size.height <= 0) return@detectTapGestures
                     val dx = (offset.x / size.width.toFloat() - 0.5f) * 2f * radarZoomRadius
                     val dy = (offset.y / size.height.toFloat() - 0.5f) * 2f * radarZoomRadius
                     val nx = (localX + dx).coerceIn(0.05f, 0.95f)
@@ -1365,6 +1371,7 @@ private fun MiniRadarOverlay(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
+            if (w <= 1f || h <= 1f) return@Canvas
             val cx = w * 0.5f
             val cy = h * 0.5f
             val radiusPx = minOf(w, h) * 0.5f
@@ -1404,11 +1411,13 @@ private fun MiniRadarOverlay(
                 // Ikon P untuk Penjara Selaras
                 val px = mapX(EstateWorld.prisonDoorX)
                 val py = mapY(EstateWorld.prisonDoorY)
-                drawCircle(Color(0xFFF59E0B), radius = 6.5f, center = Offset(px, py))
-                drawText(
-                    textMeasurer.measure("P", TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)),
-                    topLeft = Offset(px - 3.5f, py - 5.5f)
-                )
+                if (px in -20f..(w + 20f) && py in -20f..(h + 20f)) {
+                    drawCircle(Color(0xFFF59E0B), radius = 6.5f, center = Offset(px, py))
+                    drawText(
+                        prisonTagLayout,
+                        topLeft = Offset(px - prisonTagLayout.size.width / 2f, py - prisonTagLayout.size.height / 2f)
+                    )
+                }
 
                 // Vehicles
                 vehicles.forEach { v ->

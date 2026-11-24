@@ -18,6 +18,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -262,13 +263,23 @@ fun PatrolHudScreen(
                 }
 
                 // 2. Pemandu GANDI Cerewet — Teks berjalan transparan di BAWAH di antara analog dan tombol aksi
-                GandiTransparentMarquee(
-                    room = room,
+                BoxWithConstraints(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp, start = 122.dp, end = 164.dp)
-                )
+                        .padding(bottom = 12.dp)
+                ) {
+                    val useWidePadding = maxWidth >= 460.dp
+                    GandiTransparentMarquee(
+                        room = room,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = if (useWidePadding) 122.dp else 16.dp,
+                                end = if (useWidePadding) 164.dp else 16.dp
+                            )
+                    )
+                }
 
                 // 3. Collapsible Squad / Gate / Radio Side Drawer
                 AnimatedVisibility(

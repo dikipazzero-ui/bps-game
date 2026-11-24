@@ -64,10 +64,12 @@ class WeaponSoundEngine {
                     .setBufferSizeInBytes(pcm.size)
                     .build()
 
-                track.write(pcm, 0, pcm.size)
-                track.play()
-                val durationMs = ((pcm.size / 2) * 1000L) / sampleRate
-                kotlinx.coroutines.delay(durationMs + 80L)
+                if (track.state == AudioTrack.STATE_INITIALIZED) {
+                    track.write(pcm, 0, pcm.size)
+                    track.play()
+                    val durationMs = ((pcm.size / 2) * 1000L) / sampleRate
+                    kotlinx.coroutines.delay(durationMs + 80L)
+                }
             } catch (_: Throwable) {
                 // Abaikan bila perangkat tidak mendukung AudioTrack saat pengujian unit
             } finally {

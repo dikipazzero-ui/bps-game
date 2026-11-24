@@ -27,33 +27,54 @@ class GandiVoiceSpeaker(context: Context) {
     private var ready = false
 
     init {
-        tts = TextToSpeech(context.applicationContext) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val idLocale = Locale.forLanguageTag("id-ID")
-                val res = tts?.setLanguage(idLocale)
-                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    tts?.language = Locale.getDefault()
+        try {
+            tts = TextToSpeech(context.applicationContext) { status ->
+                try {
+                    if (status == TextToSpeech.SUCCESS) {
+                        val idLocale = Locale.forLanguageTag("id-ID")
+                        val res = tts?.setLanguage(idLocale)
+                        if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                            tts?.language = Locale.getDefault()
+                        }
+                        tts?.setPitch(1.08f)
+                        tts?.setSpeechRate(1.05f)
+                        ready = true
+                    }
+                } catch (e: Throwable) {
+                    Log.w("GandiVoice", "TTS setup skipped: ${e.message}")
+                    ready = false
                 }
-                tts?.setPitch(1.08f)
-                tts?.setSpeechRate(1.05f)
-                ready = true
             }
+        } catch (e: Throwable) {
+            Log.w("GandiVoice", "TTS unavailable: ${e.message}")
+            tts = null
+            ready = false
         }
     }
 
     fun speak(text: String, enabled: Boolean) {
         if (!enabled || !ready) return
-        val clean = text.replace("//", " ").take(220)
-        tts?.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "gandi_${System.currentTimeMillis()}")
+        try {
+            val clean = text.replace("//", " ").take(220)
+            tts?.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "gandi_${System.currentTimeMillis()}")
+        } catch (e: Throwable) {
+            Log.w("GandiVoice", "TTS speak skipped: ${e.message}")
+        }
     }
 
     fun stop() {
-        tts?.stop()
+        try {
+            tts?.stop()
+        } catch (_: Throwable) {
+        }
     }
 
     fun shutdown() {
-        tts?.stop()
-        tts?.shutdown()
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (_: Throwable) {
+        }
         tts = null
         ready = false
     }

@@ -90,6 +90,7 @@ data class Camera3D(
         val upCam = fwdHoriz * sinP + dy * cosP
         val sx = cx + (right / depth) * focal
         val sy = cy - (upCam / depth) * focal
+        if (!sx.isFinite() || !sy.isFinite()) return null
         return Offset(sx, sy) to depth
     }
 }
@@ -133,6 +134,7 @@ fun DrawScope.renderEstate3DScene(
 ) {
     val w = size.width
     val h = size.height
+    if (w <= 1f || h <= 1f || !w.isFinite() || !h.isFinite()) return
     val focal = minOf(w, h) * 1.05f
     val attr = AttributeCatalog.byId(localAttributeId)
     val nvgActive = attr.style == AttributeStyle.NVG_GOGGLES && isNightMode
@@ -190,7 +192,7 @@ fun DrawScope.renderEstate3DScene(
         else -> Color(0xFF5D5039)
     }
 
-    if (horizonY > 0f) {
+    if (horizonY > 1f) {
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(skyTop, skyMid, skyHorizon),
@@ -201,13 +203,14 @@ fun DrawScope.renderEstate3DScene(
             size = Size(w, horizonY.coerceAtLeast(1f))
         )
     }
-    if (horizonY < h) {
-        val gStart = horizonY.coerceAtLeast(0f)
+    if (horizonY < h - 1f) {
+        val gStart = horizonY.coerceIn(0f, (h - 2f).coerceAtLeast(0f))
+        val gEnd = h.coerceAtLeast(gStart + 1f)
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(groundFarColor, groundNearColor),
                 startY = gStart,
-                endY = h
+                endY = gEnd
             ),
             topLeft = Offset(0f, gStart),
             size = Size(w, (h - gStart).coerceAtLeast(1f))
@@ -215,28 +218,33 @@ fun DrawScope.renderEstate3DScene(
     }
 
     // Sun (Day) or Moon + Stars (Night) in sky
-    val sunYawOffset = sin(camYaw + 0.55f) * w * 0.44f
-    val celestialX = w * 0.52f + sunYawOffset
-    val celestialY = (horizonY - h * 0.22f).coerceIn(h * 0.06f, horizonY - 12f)
-    if (!isNightMode && horizonY > 24f) {
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Color(0xFFFFFFFF), Color(0xFFFDE047).copy(alpha = 0.72f), Color(0xFFF59E0B).copy(alpha = 0.24f), Color.Transparent),
-                center = Offset(celestialX, celestialY),
-                radius = 165f
-            ),
-            radius = 165f,
-            center = Offset(celestialX, celestialY)
-        )
-    } else if (isNightMode && horizonY > 24f) {
-        val moonColor = if (nvgActive) Color(0xFF6EE7B7) else Color(0xFFE2E8F0)
-        drawCircle(moonColor.copy(alpha = 0.22f), radius = 44f, center = Offset(celestialX, celestialY))
-        drawCircle(moonColor.copy(alpha = 0.92f), radius = 14f, center = Offset(celestialX, celestialY))
-        for (i in 0..24) {
-            val sx = ((i * 131 + (camYaw * 140f).toInt()) % w.toInt().coerceAtLeast(120)).toFloat().let { if (it < 0f) it + w else it }
-            val sy = (i % 7) * (horizonY.coerceAtLeast(80f) * 0.11f) + 12f
-            if (sy < horizonY - 10f) {
-                drawCircle(moonColor.copy(alpha = 0.65f), radius = if (i % 4 == 0) 2.0f else 1.2f, center = Offset(sx, sy))
+    val minCelestialY = h * 0.06f
+    val maxCelestialY = horizonY - 12f
+    if (horizonY > 24f && maxCelestialY > minCelestialY + 1f) {
+        val sunYawOffset = sin(camYaw + 0.55f) * w * 0.44f
+        val celestialX = w * 0.52f + sunYawOffset
+        val celestialY = (horizonY - h * 0.22f).coerceIn(minCelestialY, maxCelestialY)
+        if (!isNightMode) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFFFFFFFF), Color(0xFFFDE047).copy(alpha = 0.72f), Color(0xFFF59E0B).copy(alpha = 0.24f), Color.Transparent),
+                    center = Offset(celestialX, celestialY),
+                    radius = 165f
+                ),
+                radius = 165f,
+                center = Offset(celestialX, celestialY)
+            )
+        } else {
+            val moonColor = if (nvgActive) Color(0xFF6EE7B7) else Color(0xFFE2E8F0)
+            drawCircle(moonColor.copy(alpha = 0.22f), radius = 44f, center = Offset(celestialX, celestialY))
+            drawCircle(moonColor.copy(alpha = 0.92f), radius = 14f, center = Offset(celestialX, celestialY))
+            val wMod = w.toInt().coerceAtLeast(120)
+            for (i in 0..24) {
+                val sx = ((i * 131 + (camYaw * 140f).toInt()) % wMod).toFloat().let { if (it < 0f) it + w else it }
+                val sy = (i % 7) * (horizonY.coerceAtLeast(80f) * 0.11f) + 12f
+                if (sy < horizonY - 10f) {
+                    drawCircle(moonColor.copy(alpha = 0.65f), radius = if (i % 4 == 0) 2.0f else 1.2f, center = Offset(sx, sy))
+                }
             }
         }
     }
@@ -606,6 +614,19 @@ fun DrawScope.renderEstate3DScene(
     }
 }
 
+private fun DrawScope.drawSafeWorldText(
+    textMeasurer: TextMeasurer,
+    text: String,
+    style: TextStyle,
+    centerX: Float,
+    topY: Float
+) {
+    if (text.isBlank() || !centerX.isFinite() || !topY.isFinite()) return
+    if (centerX < -220f || centerX > size.width + 220f || topY < -140f || topY > size.height + 140f) return
+    val measured = textMeasurer.measure(text, style)
+    drawText(measured, topLeft = Offset(centerX - measured.size.width / 2f, topY))
+}
+
 private fun distance3D(a: Vec3, b: Vec3): Float {
     val dx = a.x - b.x
     val dy = a.y - b.y
@@ -734,8 +755,10 @@ private fun DrawScope.drawRealisticBuilding3D(
             lineTo(t1.x, t1.y)
             close()
         }
-        val minY = minOf(t1.y, t2.y)
-        val maxY = maxOf(b1.y, b2.y)
+        val rawMinY = minOf(t1.y, t2.y)
+        val rawMaxY = maxOf(b1.y, b2.y)
+        val clampedStartY = rawMinY.coerceIn(-size.height * 2f, size.height * 3f)
+        val clampedEndY = rawMaxY.coerceIn(-size.height * 2f, size.height * 3f).coerceAtLeast(clampedStartY + 1f)
         drawPath(
             path = facePath,
             brush = Brush.verticalGradient(
@@ -743,8 +766,8 @@ private fun DrawScope.drawRealisticBuilding3D(
                 0.74f to litWall,
                 0.76f to litPlinth,
                 1.0f to lerp(litPlinth, Color.Black, 0.25f),
-                startY = minY,
-                endY = maxY.coerceAtLeast(minY + 1f)
+                startY = clampedStartY,
+                endY = clampedEndY
             )
         )
 
@@ -790,11 +813,13 @@ private fun DrawScope.drawRealisticBuilding3D(
 
     val labelProj = cam.project(normToWorld((b.minX + b.maxX) * 0.5f, (b.minY + b.maxY) * 0.5f, hWall + 2.4f))
     if (labelProj != null && labelProj.second < 110f) {
-        val measured = textMeasurer.measure(
-            b.label,
-            TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color.White.copy(alpha = 0.9f))
+        drawSafeWorldText(
+            textMeasurer = textMeasurer,
+            text = b.label,
+            style = TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color.White.copy(alpha = 0.9f)),
+            centerX = labelProj.first.x,
+            topY = labelProj.first.y
         )
-        drawText(measured, topLeft = Offset(labelProj.first.x - measured.size.width / 2f, labelProj.first.y))
     }
 }
 
@@ -870,11 +895,13 @@ private fun DrawScope.drawRealisticPrison3D(
 
     val labelProj = cam.project(normToWorld((b.minX + b.maxX) * 0.5f, (b.minY + b.maxY) * 0.5f, hWall + 3.2f))
     if (labelProj != null && labelProj.second < 130f) {
-        val m = textMeasurer.measure(
-            "PENJARA",
-            TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = Color(0xFFFDE047))
+        drawSafeWorldText(
+            textMeasurer = textMeasurer,
+            text = "PENJARA",
+            style = TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = Color(0xFFFDE047)),
+            centerX = labelProj.first.x,
+            topY = labelProj.first.y
         )
-        drawText(m, topLeft = Offset(labelProj.first.x - m.size.width / 2f, labelProj.first.y))
     }
 }
 
@@ -1036,11 +1063,13 @@ private fun DrawScope.drawRealisticMosque3D(
 
     val labelProj = cam.project(normToWorld(cx, cy, hWall + 12.5f))
     if (labelProj != null && labelProj.second < 150f) {
-        val measured = textMeasurer.measure(
-            "MASJID AGUNG SELARAS",
-            TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = goldAccent)
+        drawSafeWorldText(
+            textMeasurer = textMeasurer,
+            text = "MASJID AGUNG SELARAS",
+            style = TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = goldAccent),
+            centerX = labelProj.first.x,
+            topY = labelProj.first.y
         )
-        drawText(measured, topLeft = Offset(labelProj.first.x - measured.size.width / 2f, labelProj.first.y))
     }
 }
 
@@ -1142,11 +1171,13 @@ private fun DrawScope.drawVehicle3D(
     }
 
     if (!isMountedByMe && depth < 65f) {
-        val tag = textMeasurer.measure(
-            if (vehicle.type == VehicleType.CAR) "MOBIL" else "MOTOR",
-            TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.Bold, fontSize = 8.sp, color = trimTint)
+        drawSafeWorldText(
+            textMeasurer = textMeasurer,
+            text = if (vehicle.type == VehicleType.CAR) "MOBIL" else "MOTOR",
+            style = TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.Bold, fontSize = 8.sp, color = trimTint),
+            centerX = rPt.x,
+            topY = rPt.y - 16f
         )
-        drawText(tag, topLeft = Offset(rPt.x - tag.size.width / 2f, rPt.y - 16f))
     }
 }
 
@@ -1185,11 +1216,13 @@ private fun DrawScope.drawGate3D(
 
     val tag = cam.project(normToWorld(nx, ny, 7.2f))
     if (tag != null && tag.second < 110f) {
-        val m = textMeasurer.measure(
-            "$label: ${status.labelId}",
-            TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, color = gateColor)
+        drawSafeWorldText(
+            textMeasurer = textMeasurer,
+            text = "$label: ${status.labelId}",
+            style = TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, color = gateColor),
+            centerX = tag.first.x,
+            topY = tag.first.y
         )
-        drawText(m, topLeft = Offset(tag.first.x - m.size.width / 2f, tag.first.y))
     }
 }
 
@@ -1398,16 +1431,18 @@ private fun DrawScope.drawGuard3D(
     }
 
     if (label.isNotBlank() && depth < 110f) {
-        val tag = textMeasurer.measure(
-            label,
-            TextStyle(
+        drawSafeWorldText(
+            textMeasurer = textMeasurer,
+            text = label,
+            style = TextStyle(
                 fontFamily = SpaceGroteskFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 10.sp,
                 color = if (isMe) Color(0xFFFDE047) else Color.White
-            )
+            ),
+            centerX = headCenter.x,
+            topY = headCenter.y - 24f * s
         )
-        drawText(tag, topLeft = Offset(headCenter.x - tag.size.width / 2f, headCenter.y - 24f * s))
     }
 }
 
@@ -1472,15 +1507,17 @@ private fun DrawScope.drawThief3D(
             stunned -> "${thief.label} TERLUKA"
             else -> thief.label
         }
-        val m = textMeasurer.measure(
-            tagText,
-            TextStyle(
+        drawSafeWorldText(
+            textMeasurer = textMeasurer,
+            text = tagText,
+            style = TextStyle(
                 fontFamily = JetBrainsMonoFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 10.sp,
                 color = if (isJailedWalk) Color(0xFF38BDF8) else Color(0xFFFCA5A5)
-            )
+            ),
+            centerX = headPt.x,
+            topY = headPt.y - 24f * s
         )
-        drawText(m, topLeft = Offset(headPt.x - m.size.width / 2f, headPt.y - 24f * s))
     }
 }

@@ -131,4 +131,36 @@ class GameLogicTest {
         assertTrue("Prison door must be walkable", EstateWorld.isWalkable(EstateWorld.prisonDoorX, EstateWorld.prisonDoorY))
         assertFalse("Inside Penjara Selaras should block walking", EstateWorld.isWalkable(0.415f, 0.08f))
     }
+
+    @Test
+    fun `camera3d projection and celestial horizon bounds stay finite and valid for all pitches`() {
+        val w = 1280f
+        val h = 720f
+        val focal = minOf(w, h) * 1.05f
+        val pitches = listOf(-0.22f, 0f, 0.18f, 0.45f, 0.85f)
+        pitches.forEach { pitch ->
+            val horizonY = (h * 0.5f - kotlin.math.tan(pitch) * focal).coerceIn(-h * 0.4f, h * 1.15f)
+            val minCelestialY = h * 0.06f
+            val maxCelestialY = horizonY - 12f
+            if (horizonY > 24f && maxCelestialY > minCelestialY + 1f) {
+                val celestialY = (horizonY - h * 0.22f).coerceIn(minCelestialY, maxCelestialY)
+                assertTrue(celestialY.isFinite())
+                assertTrue(celestialY in minCelestialY..maxCelestialY)
+            }
+            val cam = com.example.ui.components.Camera3D(
+                pos = com.example.ui.components.Vec3(0f, 10f, 20f),
+                yaw = 0.5f,
+                pitch = pitch,
+                focal = focal,
+                cx = w * 0.5f,
+                cy = h * 0.5f
+            )
+            val proj = cam.project(com.example.ui.components.Vec3(0f, 0f, 0f))
+            if (proj != null) {
+                assertTrue(proj.first.x.isFinite())
+                assertTrue(proj.first.y.isFinite())
+                assertTrue(proj.second >= 1.5f)
+            }
+        }
+    }
 }

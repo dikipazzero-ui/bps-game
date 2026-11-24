@@ -51,7 +51,7 @@ fun EstateMapCanvas(
     onMapTap: (EstateSector, Float, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val textMeasurer = rememberTextMeasurer()
+    val textMeasurer = rememberTextMeasurer(cacheSize = 32)
     val infiniteTransition = rememberInfiniteTransition(label = "radar")
     val radarPhase by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -90,6 +90,7 @@ fun EstateMapCanvas(
         ) {
             val w = size.width
             val h = size.height
+            if (w <= 1f || h <= 1f) return@Canvas
 
             // 1. Estate Base Ground
             drawRoundRect(
@@ -209,7 +210,7 @@ fun EstateMapCanvas(
                 drawText(
                     textLayoutResult = labelResult,
                     topLeft = Offset(
-                        (tx - labelResult.size.width / 2f).coerceIn(8f, w - labelResult.size.width - 8f),
+                        (tx - labelResult.size.width / 2f).coerceIn(8f, (w - labelResult.size.width - 8f).coerceAtLeast(8f)),
                         (ty - 32f).coerceAtLeast(8f)
                     )
                 )
@@ -265,8 +266,8 @@ fun EstateMapCanvas(
                 drawText(
                     textLayoutResult = tagLayout,
                     topLeft = Offset(
-                        (gx - tagLayout.size.width / 2f).coerceIn(6f, w - tagLayout.size.width - 6f),
-                        (gy + 16f).coerceAtMost(h - tagLayout.size.height - 6f)
+                        (gx - tagLayout.size.width / 2f).coerceIn(6f, (w - tagLayout.size.width - 6f).coerceAtLeast(6f)),
+                        (gy + 16f).coerceIn(6f, (h - tagLayout.size.height - 6f).coerceAtLeast(6f))
                     )
                 )
             }
