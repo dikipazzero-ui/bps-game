@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -75,213 +76,258 @@ fun AuthScreen(onAuthSuccess: () -> Unit) {
         )
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.surface
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Fullscreen Background Map Bumi Papan Selaras
+        Image(
+            painter = painterResource(id = com.example.R.drawable.bg_bps_menu),
+            contentDescription = "Peta Kawasan Bumi Papan Selaras",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xB8050A14),
+                            Color(0x98050A14),
+                            Color(0xCC050A14)
+                        )
                     )
                 )
-            )
-            .safeDrawingPadding(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
+        )
+
+        BoxWithConstraints(
             modifier = Modifier
-                .widthIn(max = 520.dp)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
+                .safeDrawingPadding(),
+            contentAlignment = Alignment.Center
         ) {
-            // Hero Banner Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(210.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
-            ) {
-                Image(
-                    painter = painterResource(id = com.example.R.drawable.img_estate_banner),
-                    contentDescription = "Pemandangan patroli perumahan Bumi Papan Selaras",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
+            val isLandscape = maxWidth >= 560.dp
+
+            if (isLandscape) {
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color(0xDD090E1A))
+                        .widthIn(max = 920.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left Side: Branding + Feature Pills over scenic background
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "PATROLI MULTIPLAYER 3D",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
+                        }
+                        Text(
+                            text = stringResource(com.example.R.string.app_name),
+                            style = MaterialTheme.typography.displayLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold
                         )
-                )
+                        Text(
+                            text = stringResource(com.example.R.string.app_subtitle),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color(0xFFE2E8F0)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AuthFeaturePill(
+                                icon = Icons.Filled.LocationSearching,
+                                title = "Peta Luas",
+                                subtitle = "Mobil & Motor",
+                                modifier = Modifier.weight(1f)
+                            )
+                            AuthFeaturePill(
+                                icon = Icons.Filled.RecordVoiceOver,
+                                title = "Radio PTT",
+                                subtitle = "Suara & Ping",
+                                modifier = Modifier.weight(1f)
+                            )
+                            AuthFeaturePill(
+                                icon = Icons.Filled.Shield,
+                                title = "Gudang",
+                                subtitle = "Armor & Senjata",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    // Right Side: GANDI Briefing + Sign-In Action
+                    Column(
+                        modifier = Modifier.weight(0.95f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xDC0F172A)
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.55f)),
+                            shape = RoundedCornerShape(18.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Image(
+                                    painter = painterResource(id = com.example.R.drawable.img_gandi_avatar),
+                                    contentDescription = "Avatar Operator GANDI",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .border(2.dp, MaterialTheme.colorScheme.secondary, CircleShape)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = stringResource(com.example.R.string.gandi_name),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                    Spacer(Modifier.height(3.dp))
+                                    Text(
+                                        text = "\"Ayo cepat absen, komandan! Penyusup baru saja terlihat melintasi Blok Cemara dekat Area Masjid Bumi Papan Selaras!\"",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        if (errorMessage != null) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = errorMessage!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                errorMessage = null
+                                isLoading = true
+                                onGoogleSignInClicked(
+                                    context = context,
+                                    credentialManager = credentialManager,
+                                    onAuthSuccess = {
+                                        isLoading = false
+                                        onAuthSuccess()
+                                    },
+                                    onAuthError = { msg ->
+                                        isLoading = false
+                                        errorMessage = msg
+                                    },
+                                    scope = scope,
+                                    onAuthCancelled = { cancelReason ->
+                                        isLoading = false
+                                        errorMessage = cancelReason
+                                    }
+                                )
+                            },
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp)
+                                .testTag("google_sign_in_button")
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.5.dp
+                                )
+                            } else {
+                                Icon(Icons.Filled.Security, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    text = stringResource(com.example.R.string.sign_in_google),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
                 Column(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(18.dp)
+                        .widthIn(max = 520.dp)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = "PATROLI MULTIPLAYER",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
                     Text(
                         text = stringResource(com.example.R.string.app_name),
                         style = MaterialTheme.typography.displayLarge,
-                        color = Color.White
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold
                     )
                     Text(
                         text = stringResource(com.example.R.string.app_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFCBD5E1)
+                        color = Color(0xFFE2E8F0)
                     )
-                }
-            }
-
-            // Kartu Pengarahan GANDI
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f)),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        painter = painterResource(id = com.example.R.drawable.img_gandi_avatar),
-                        contentDescription = "Avatar Operator GANDI",
-                        contentScale = ContentScale.Crop,
+                    Button(
+                        onClick = {
+                            errorMessage = null
+                            isLoading = true
+                            onGoogleSignInClicked(
+                                context = context,
+                                credentialManager = credentialManager,
+                                onAuthSuccess = {
+                                    isLoading = false
+                                    onAuthSuccess()
+                                },
+                                onAuthError = { msg ->
+                                    isLoading = false
+                                    errorMessage = msg
+                                },
+                                scope = scope,
+                                onAuthCancelled = { cancelReason ->
+                                    isLoading = false
+                                    errorMessage = cancelReason
+                                }
+                            )
+                        },
+                        enabled = !isLoading,
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, MaterialTheme.colorScheme.secondary, CircleShape)
-                    )
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(
-                            text = stringResource(com.example.R.string.gandi_name),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "\"Ayo cepat absen, komandan! Penyusup baru saja terlihat melintasi Blok Cemara dekat Area Masjid Bumi Papan Selaras!\"",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .testTag("google_sign_in_button")
+                    ) {
+                        Text(stringResource(com.example.R.string.sign_in_google), fontWeight = FontWeight.Bold)
                     }
-                }
-            }
-
-            // Ringkasan Fitur Utama
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                AuthFeaturePill(
-                    icon = Icons.Filled.LocationSearching,
-                    title = "Peta Live",
-                    subtitle = "9 Sektor",
-                    modifier = Modifier.weight(1f)
-                )
-                AuthFeaturePill(
-                    icon = Icons.Filled.RecordVoiceOver,
-                    title = "Radio PTT",
-                    subtitle = "Suara & Ping",
-                    modifier = Modifier.weight(1f)
-                )
-                AuthFeaturePill(
-                    icon = Icons.Filled.Shield,
-                    title = "Gudang",
-                    subtitle = "6 Seragam",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            if (errorMessage != null) {
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = errorMessage!!,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(12.dp)
-                    )
-                }
-            }
-
-            // Tombol Login Google Interaktif
-            Button(
-                onClick = {
-                    errorMessage = null
-                    isLoading = true
-                    onGoogleSignInClicked(
-                        context = context,
-                        credentialManager = credentialManager,
-                        onAuthSuccess = {
-                            isLoading = false
-                            onAuthSuccess()
-                        },
-                        onAuthError = { msg ->
-                            isLoading = false
-                            errorMessage = msg
-                        },
-                        scope = scope,
-                        onAuthCancelled = { cancelReason ->
-                            isLoading = false
-                            errorMessage = cancelReason
-                        }
-                    )
-                },
-                enabled = !isLoading,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("google_sign_in_button")
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.5.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.Security,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(com.example.R.string.sign_in_google),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         }
@@ -296,31 +342,32 @@ private fun AuthFeaturePill(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = Color(0xD40F172A),
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = Color(0xFF94A3B8)
             )
         }
     }

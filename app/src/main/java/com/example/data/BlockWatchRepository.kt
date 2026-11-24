@@ -715,6 +715,34 @@ class BlockWatchRepository(
         }
     }
 
+    suspend fun syncThiefEscape(
+        roomId: String,
+        sector: EstateSector,
+        nx: Float,
+        ny: Float
+    ): Result<Unit> {
+        val path = "rooms/$roomId"
+        return try {
+            requireUserId()
+            db.collection("rooms").document(roomId).update(
+                mapOf(
+                    "activeThiefSectorId" to sector.id,
+                    "activeThiefStreet" to sector.streetName,
+                    "activeThiefX" to nx.coerceIn(0.05f, 0.95f).toDouble(),
+                    "activeThiefY" to ny.coerceIn(0.05f, 0.95f).toDouble(),
+                    "thiefSpotted" to true,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+
     suspend fun purchaseAndEquipUniform(uniformId: String, profile: UserProfile): Result<Unit> {
         var path = "users/unknown"
         return try {

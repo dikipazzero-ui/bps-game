@@ -193,13 +193,28 @@ data class BuildingFootprint(
     val isMosque: Boolean = false
 )
 
+enum class VehicleType(val label: String, val speedMultiplier: Float, val armorBonus: Float) {
+    CAR("Mobil Patroli", 2.40f, 0.35f),
+    MOTORCYCLE("Motor Patroli", 2.10f, 0.12f)
+}
+
+data class WorldVehicle(
+    val id: String,
+    val type: VehicleType,
+    val x: Float,
+    val y: Float,
+    val facingDeg: Float,
+    val bodyColor: Color,
+    val accentColor: Color
+)
+
 object EstateWorld {
     val buildings: List<BuildingFootprint> = listOf(
         BuildingFootprint(
             id = "BLOK_KRISAN",
             label = "BLOK KRISAN",
             minX = 0.14f, minY = 0.14f, maxX = 0.30f, maxY = 0.25f,
-            height3D = 12f,
+            height3D = 18f,
             roofColor = Color(0xFF283B5B),
             wallColor = Color(0xFF17253B),
             accentColor = Color(0xFF38BDF8)
@@ -208,7 +223,7 @@ object EstateWorld {
             id = "BLOK_CEMPAKA",
             label = "BLOK CEMPAKA",
             minX = 0.70f, minY = 0.14f, maxX = 0.86f, maxY = 0.25f,
-            height3D = 13f,
+            height3D = 19f,
             roofColor = Color(0xFF334155),
             wallColor = Color(0xFF1E293B),
             accentColor = Color(0xFFF59E0B)
@@ -217,7 +232,7 @@ object EstateWorld {
             id = "BLOK_CEMARA",
             label = "BLOK CEMARA",
             minX = 0.11f, minY = 0.43f, maxX = 0.25f, maxY = 0.56f,
-            height3D = 14f,
+            height3D = 20f,
             roofColor = Color(0xFF1E3A5F),
             wallColor = Color(0xFF122640),
             accentColor = Color(0xFF10B981)
@@ -226,7 +241,7 @@ object EstateWorld {
             id = "AREA_MASJID",
             label = "MASJID AGUNG SELARAS",
             minX = 0.44f, minY = 0.44f, maxX = 0.56f, maxY = 0.56f,
-            height3D = 10f,
+            height3D = 14f,
             roofColor = Color(0xFF047857),
             wallColor = Color(0xFFE2E8F0),
             accentColor = Color(0xFFFDE047),
@@ -236,7 +251,7 @@ object EstateWorld {
             id = "BLOK_AKASIA",
             label = "BLOK AKASIA",
             minX = 0.75f, minY = 0.43f, maxX = 0.89f, maxY = 0.56f,
-            height3D = 15f,
+            height3D = 21f,
             roofColor = Color(0xFF263859),
             wallColor = Color(0xFF162338),
             accentColor = Color(0xFF22D3EE)
@@ -245,7 +260,7 @@ object EstateWorld {
             id = "BLOK_CAMELIA",
             label = "BLOK CAMELIA",
             minX = 0.14f, minY = 0.75f, maxX = 0.30f, maxY = 0.86f,
-            height3D = 11f,
+            height3D = 17f,
             roofColor = Color(0xFF3B2F4A),
             wallColor = Color(0xFF241B30),
             accentColor = Color(0xFFF472B6)
@@ -254,11 +269,32 @@ object EstateWorld {
             id = "BLOK_FLAMBOYAN",
             label = "BLOK FLAMBOYAN",
             minX = 0.70f, minY = 0.75f, maxX = 0.86f, maxY = 0.86f,
-            height3D = 16f,
+            height3D = 22f,
             roofColor = Color(0xFF3A2A2E),
             wallColor = Color(0xFF251A1D),
             accentColor = Color(0xFFFB7185)
         )
+    )
+
+    val subBuildings: List<BuildingFootprint> = listOf(
+        BuildingFootprint("CLUSTER_KRISAN_U", "RUMAH KRISAN", 0.14f, 0.06f, 0.25f, 0.11f, 12f, Color(0xFF22334D), Color(0xFF162235), Color(0xFF38BDF8)),
+        BuildingFootprint("CLUSTER_CEMPAKA_U", "RUMAH CEMPAKA", 0.75f, 0.06f, 0.86f, 0.11f, 13f, Color(0xFF2D394B), Color(0xFF1B2432), Color(0xFFF59E0B)),
+        BuildingFootprint("CLUSTER_UTARA_B", "KLASTER UTARA-B", 0.36f, 0.14f, 0.44f, 0.24f, 15f, Color(0xFF263852), Color(0xFF17253B), Color(0xFF38BDF8)),
+        BuildingFootprint("CLUSTER_UTARA_T", "KLASTER UTARA-T", 0.56f, 0.14f, 0.64f, 0.24f, 15f, Color(0xFF2D3A4F), Color(0xFF192231), Color(0xFFF59E0B)),
+        BuildingFootprint("CLUSTER_SELATAN_B", "KLASTER SELATAN-B", 0.36f, 0.75f, 0.44f, 0.85f, 14f, Color(0xFF332842), Color(0xFF21182C), Color(0xFFF472B6)),
+        BuildingFootprint("CLUSTER_SELATAN_T", "KLASTER SELATAN-T", 0.56f, 0.75f, 0.64f, 0.85f, 16f, Color(0xFF36282E), Color(0xFF22171B), Color(0xFFFB7185)),
+        BuildingFootprint("CLUSTER_CAMELIA_S", "RUMAH CAMELIA", 0.14f, 0.89f, 0.25f, 0.94f, 12f, Color(0xFF342942), Color(0xFF221A2D), Color(0xFFF472B6)),
+        BuildingFootprint("CLUSTER_FLAMBOYAN_S", "RUMAH FLAMBOYAN", 0.75f, 0.89f, 0.86f, 0.94f, 13f, Color(0xFF38282B), Color(0xFF23181A), Color(0xFFFB7185))
+    )
+
+    val allBuildings: List<BuildingFootprint> = buildings + subBuildings
+
+    val defaultVehicles: List<WorldVehicle> = listOf(
+        WorldVehicle("car_masjid", VehicleType.CAR, 0.475f, 0.635f, 90f, Color(0xFF0F172A), Color(0xFF38BDF8)),
+        WorldVehicle("moto_masjid", VehicleType.MOTORCYCLE, 0.53f, 0.635f, 0f, Color(0xFF1E293B), Color(0xFFF59E0B)),
+        WorldVehicle("moto_krisan", VehicleType.MOTORCYCLE, 0.335f, 0.295f, 180f, Color(0xFF0284C7), Color(0xFFE2E8F0)),
+        WorldVehicle("car_flamboyan", VehicleType.CAR, 0.66f, 0.705f, 270f, Color(0xFFE2E8F0), Color(0xFFEF4444)),
+        WorldVehicle("moto_akasia", VehicleType.MOTORCYCLE, 0.665f, 0.295f, 90f, Color(0xFF10B981), Color(0xFFFDE047))
     )
 
     val sectors: List<EstateSector> = listOf(
@@ -391,16 +427,29 @@ object EstateWorld {
         return sqrt(dx * dx + dy * dy)
     }
 
-    fun isWalkable(nx: Float, ny: Float, pad: Float = 0.018f): Boolean {
-        if (nx < 0.05f || nx > 0.95f || ny < 0.05f || ny > 0.95f) return false
-        return buildings.none { b ->
+    fun isWalkable(nx: Float, ny: Float, pad: Float = 0.015f): Boolean {
+        if (nx < 0.04f || nx > 0.96f || ny < 0.04f || ny > 0.96f) return false
+        return allBuildings.none { b ->
             nx in (b.minX - pad)..(b.maxX + pad) && ny in (b.minY - pad)..(b.maxY + pad)
         }
     }
 
+    fun hasLineOfSight(x1: Float, y1: Float, x2: Float, y2: Float): Boolean {
+        val steps = 10
+        for (i in 1 until steps) {
+            val t = i / steps.toFloat()
+            val sx = x1 + (x2 - x1) * t
+            val sy = y1 + (y2 - y1) * t
+            if (allBuildings.any { b -> sx in b.minX..b.maxX && sy in b.minY..b.maxY }) {
+                return false
+            }
+        }
+        return true
+    }
+
     fun moveWithCollision(oldX: Float, oldY: Float, targetX: Float, targetY: Float): Pair<Float, Float> {
-        val clampedX = targetX.coerceIn(0.05f, 0.95f)
-        val clampedY = targetY.coerceIn(0.05f, 0.95f)
+        val clampedX = targetX.coerceIn(0.04f, 0.96f)
+        val clampedY = targetY.coerceIn(0.04f, 0.96f)
         if (isWalkable(clampedX, clampedY)) return clampedX to clampedY
         if (isWalkable(clampedX, oldY)) return clampedX to oldY
         if (isWalkable(oldX, clampedY)) return oldX to clampedY

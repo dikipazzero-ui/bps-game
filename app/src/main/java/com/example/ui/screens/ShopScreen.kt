@@ -99,16 +99,16 @@ fun ShopScreen(
     ) {
         LazyColumn(
             modifier = Modifier
-                .widthIn(max = 720.dp)
+                .widthIn(max = 860.dp)
                 .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // 1. Studio Pratinjau Karakter 3D Interaktif
             item {
                 Card(
                     shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -408,8 +408,8 @@ private fun ShopItemCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isEquipped || isPreviewing) MaterialTheme.colorScheme.surfaceVariant
-            else MaterialTheme.colorScheme.surface
+            containerColor = if (isEquipped || isPreviewing) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.90f)
+            else MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)
         ),
         border = BorderStroke(
             width = if (isEquipped) 2.dp else if (isPreviewing) 1.5.dp else 1.dp,

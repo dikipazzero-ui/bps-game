@@ -93,10 +93,10 @@ fun LobbyScreen(
     ) {
         LazyColumn(
             modifier = Modifier
-                .widthIn(max = 680.dp)
+                .widthIn(max = 840.dp)
                 .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // 1. Top Estate Hero & Guard Profile Card
             item {
@@ -131,7 +131,7 @@ fun LobbyScreen(
                         val attribute = AttributeCatalog.byId(profile.equippedAttributeId)
                         Card(
                             shape = RoundedCornerShape(22.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f)),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -274,8 +274,8 @@ fun LobbyScreen(
             item {
                 Card(
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -415,7 +415,7 @@ fun LobbyScreen(
                     if (rooms.isEmpty()) {
                         item {
                             Card(
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)),
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                 shape = RoundedCornerShape(18.dp),
                                 modifier = Modifier.fillMaxWidth()
@@ -451,7 +451,7 @@ fun LobbyScreen(
                             Card(
                                 onClick = { onEnterRoom(room) },
                                 shape = RoundedCornerShape(18.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f)),
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                 modifier = Modifier
                                     .fillMaxWidth()

@@ -104,4 +104,17 @@ class GameLogicTest {
             assertTrue(msg.line.isNotBlank())
         }
     }
+
+    @Test
+    fun `estate has drivable cars and motorcycles and building line of sight occlusion`() {
+        assertTrue(EstateWorld.defaultVehicles.any { it.type == com.example.model.VehicleType.CAR })
+        assertTrue(EstateWorld.defaultVehicles.any { it.type == com.example.model.VehicleType.MOTORCYCLE })
+        EstateWorld.defaultVehicles.forEach { v ->
+            assertTrue("Vehicle ${v.id} must spawn on walkable ground", EstateWorld.isWalkable(v.x, v.y))
+        }
+        // Line of sight across Masjid Agung Selaras (0.50, 0.50) should be blocked
+        assertFalse(EstateWorld.hasLineOfSight(0.40f, 0.50f, 0.60f, 0.50f))
+        // Open street along Jl. Krisan-Cempaka (y=0.295) should be clear
+        assertTrue(EstateWorld.hasLineOfSight(0.20f, 0.295f, 0.45f, 0.295f))
+    }
 }

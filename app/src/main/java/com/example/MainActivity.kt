@@ -1,9 +1,19 @@
 package com.example
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -19,6 +29,10 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.outlined.Checkroom
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -69,7 +83,11 @@ import com.google.firebase.firestore.FirebaseFirestore
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         enableEdgeToEdge()
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.systemBars())
         setContent {
             BlockWatchTheme {
                 AppContent()
@@ -149,6 +167,18 @@ fun BlockWatchRoot(
         }
     }
 
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        val activity = context.findActivity()
+        if (activity != null) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            val controller = WindowCompat.getInsetsController(activity.window, view)
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose { }
+    }
+
     if (currentScreen == AppScreen.PATROL_ROOM) {
         Box(modifier = Modifier.fillMaxSize()) {
             PatrolHudScreen(
@@ -160,6 +190,7 @@ fun BlockWatchRoot(
                 thiefStunnedUntilMs = thiefStunnedUntilMs,
                 onExitRoom = { viewModel.exitRoomToLobby() },
                 onMoveToSector = { sector, nx, ny, facing -> viewModel.moveToSector(sector, nx, ny, facing) },
+                onSyncThiefEscape = { sector, nx, ny -> viewModel.syncThiefEscape(sector, nx, ny) },
                 onDropPing = { type, sector, nx, ny -> viewModel.dropTacticalPing(type, sector, nx, ny) },
                 onWeaponHitThief = { viewModel.onWeaponHitThief() },
                 onToggleGate = { isNorth -> viewModel.toggleGate(isNorth) },
@@ -183,15 +214,32 @@ fun BlockWatchRoot(
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val useRail = maxWidth >= 720.dp
+        Image(
+            painter = painterResource(id = R.drawable.bg_bps_menu),
+            contentDescription = "Peta Kawasan Bumi Papan Selaras",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0x8C060B16), Color(0xC4060B16))
+                    )
+                )
+        )
+
+        val useRail = maxWidth >= 560.dp
 
         Scaffold(
+            containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbarHostState) },
-            contentWindowInsets = WindowInsets.navigationBars,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 if (!useRail) {
                     NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface
+                        containerColor = Color(0xDC0A111F)
                     ) {
                         NavigationBarItem(
                             selected = currentScreen == AppScreen.LOBBY,
@@ -240,7 +288,7 @@ fun BlockWatchRoot(
             ) {
                 if (useRail) {
                     NavigationRail(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = Color(0xD80A111F),
                         modifier = Modifier.fillMaxHeight()
                     ) {
                         NavigationRailItem(
@@ -311,4 +359,10 @@ fun BlockWatchRoot(
             }
         }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -25,8 +26,10 @@ import com.example.model.PlayerRole
 import com.example.model.RoomPlayer
 import com.example.model.TacticalPing
 import com.example.model.UniformCatalog
+import com.example.model.VehicleType
 import com.example.model.WeaponCatalog
 import com.example.model.WeaponStyle
+import com.example.model.WorldVehicle
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import com.example.ui.theme.SpaceGroteskFontFamily
 import kotlin.math.PI
@@ -81,7 +84,7 @@ data class Camera3D(
         val right = dx * cosY + dz * sinY
         val fwdHoriz = dx * sinY - dz * cosY
         val depth = fwdHoriz * cosP - dy * sinP
-        if (depth < 1.2f) return null
+        if (depth < 1.5f) return null
         val upCam = fwdHoriz * sinP + dy * cosP
         val sx = cx + (right / depth) * focal
         val sy = cy - (upCam / depth) * focal
@@ -89,33 +92,26 @@ data class Camera3D(
     }
 }
 
+/**
+ * Skala dunia diperluas menjadi 360 x 360 unit agar kawasan Bumi Papan Selaras
+ * terasa luas untuk patroli mobil/motor & pencarian pencuri antarblok.
+ */
+const val WORLD_SPAN = 360f
+
 fun normToWorld(nx: Float, ny: Float, y: Float = 0f): Vec3 =
-    Vec3((nx - 0.5f) * 100f, y, (ny - 0.5f) * 100f)
+    Vec3((nx - 0.5f) * WORLD_SPAN, y, (ny - 0.5f) * WORLD_SPAN)
 
 private data class DepthObject(
     val depth: Float,
     val draw: DrawScope.() -> Unit
 )
 
-private data class ParkedCar(
-    val nx: Float,
-    val ny: Float,
-    val horizontal: Boolean,
-    val bodyColor: Color,
-    val isPatrolCar: Boolean
-)
-
-private val estateVehicles = listOf(
-    ParkedCar(0.36f, 0.295f, horizontal = true, bodyColor = Color(0xFF0F172A), isPatrolCar = true),
-    ParkedCar(0.64f, 0.295f, horizontal = true, bodyColor = Color(0xFF991B1B), isPatrolCar = false),
-    ParkedCar(0.36f, 0.705f, horizontal = true, bodyColor = Color(0xFF1D4ED8), isPatrolCar = false),
-    ParkedCar(0.64f, 0.705f, horizontal = true, bodyColor = Color(0xFFE2E8F0), isPatrolCar = true)
-)
-
 fun DrawScope.renderEstate3DScene(
     room: PatrolRoom,
     players: List<RoomPlayer>,
     pings: List<TacticalPing>,
+    vehicles: List<WorldVehicle>,
+    mountedVehicleId: String?,
     currentUserId: String,
     localPlayerX: Float,
     localPlayerY: Float,
@@ -125,7 +121,9 @@ fun DrawScope.renderEstate3DScene(
     localAttributeId: String,
     localUniformId: String,
     thiefPos: Pair<Float, Float>,
+    thiefVisible: Boolean,
     thiefStunned: Boolean,
+    thiefWalkPhase: Float,
     projectiles: List<Projectile3D>,
     particles: List<Particle3D>,
     camYaw: Float,
@@ -137,158 +135,185 @@ fun DrawScope.renderEstate3DScene(
 ) {
     val w = size.width
     val h = size.height
-    val focal = minOf(w, h) * 0.92f
+    val focal = minOf(w, h) * 0.96f
     val attr = AttributeCatalog.byId(localAttributeId)
     val nvgActive = attr.style == AttributeStyle.NVG_GOGGLES
+    val isInVehicle = mountedVehicleId != null
 
-    // Dynamic "4D" Time-of-Day atmosphere blend (Dusk -> Night -> Dawn -> Dusk)
-    val atmoCycle = (sin(animClock * 0.14f) * 0.5f + 0.5f).coerceIn(0f, 1f)
-    val shadowShiftX = cos(animClock * 0.14f) * 0.032f
-    val shadowShiftY = sin(animClock * 0.14f) * 0.022f + 0.028f
+    // Dynamic "4D" Time-of-Day atmosphere blend
+    val atmoCycle = (sin(animClock * 0.12f) * 0.5f + 0.5f).coerceIn(0f, 1f)
+    val shadowShiftX = cos(animClock * 0.12f) * 0.018f
+    val shadowShiftY = sin(animClock * 0.12f) * 0.012f + 0.014f
 
     val playerWorld = normToWorld(localPlayerX, localPlayerY, 0f)
-    val camDist = 20f
+    val camDist = if (isInVehicle) 31f else 24f
+    val camHeight = if (isInVehicle) 14.5f else 11.8f
     val camPos = Vec3(
         x = playerWorld.x - sin(camYaw) * camDist,
-        y = 10.8f,
+        y = camHeight,
         z = playerWorld.z + cos(camYaw) * camDist
     )
     val cam = Camera3D(
         pos = camPos,
         yaw = camYaw,
-        pitch = 0.40f,
+        pitch = 0.36f,
         focal = focal,
         cx = w * 0.50f + camShakeX,
-        cy = h * 0.44f + camShakeY
+        cy = h * 0.45f + camShakeY
     )
 
     // 1. Dynamic 4D Sky & Atmospheric Horizon
     val skyTop = if (nvgActive) Color(0xFF031A12)
     else lerp(Color(0xFF040814), Color(0xFF172554), atmoCycle)
     val skyHorizon = if (nvgActive) Color(0xFF093826)
-    else lerp(Color(0xFF0F172A), Color(0xFF7C2D12).copy(alpha = 0.72f), atmoCycle * 0.75f)
+    else lerp(Color(0xFF0F172A), Color(0xFF7C2D12).copy(alpha = 0.68f), atmoCycle * 0.72f)
 
     drawRect(
         brush = Brush.verticalGradient(
-            colors = listOf(skyTop, skyHorizon, Color(0xFF0A111F)),
+            colors = listOf(skyTop, skyHorizon, Color(0xFF080F1C)),
             startY = 0f,
             endY = h
         )
     )
 
-    // Atmospheric Sun / Moon Glow & Horizon Stars
-    val celestialX = (w * 0.5f + sin(camYaw + atmoCycle * 1.4f) * w * 0.35f)
+    // Celestial Glow & Horizon Stars
+    val celestialX = (w * 0.5f + sin(camYaw + atmoCycle * 1.4f) * w * 0.36f)
     val celestialY = h * (0.14f - atmoCycle * 0.05f)
     val celestialColor = if (nvgActive) Color(0xFF34D399) else lerp(Color(0xFFE2E8F0), Color(0xFFFB923C), atmoCycle)
-    drawCircle(celestialColor.copy(alpha = 0.16f), radius = 46f, center = Offset(celestialX, celestialY))
-    drawCircle(celestialColor.copy(alpha = 0.75f), radius = 12f, center = Offset(celestialX, celestialY))
+    drawCircle(celestialColor.copy(alpha = 0.16f), radius = 44f, center = Offset(celestialX, celestialY))
+    drawCircle(celestialColor.copy(alpha = 0.75f), radius = 11f, center = Offset(celestialX, celestialY))
 
     for (i in 0..18) {
-        val sx = ((i * 97 + (camYaw * 120f).toInt()) % w.toInt().coerceAtLeast(100)).toFloat().let {
+        val sx = ((i * 113 + (camYaw * 120f).toInt()) % w.toInt().coerceAtLeast(100)).toFloat().let {
             if (it < 0f) it + w else it
         }
-        val sy = h * (0.03f + (i % 5) * 0.032f)
+        val sy = h * (0.04f + (i % 5) * 0.03f)
         drawCircle(
-            color = celestialColor.copy(alpha = (0.48f - atmoCycle * 0.25f).coerceAtLeast(0.12f)),
-            radius = if (i % 3 == 0) 2.2f else 1.3f,
+            color = celestialColor.copy(alpha = (0.45f - atmoCycle * 0.22f).coerceAtLeast(0.10f)),
+            radius = if (i % 3 == 0) 2.2f else 1.2f,
             center = Offset(sx, sy)
         )
     }
 
-    // 2. Ground Plane (Bumi Papan Selaras Housing Grid)
-    val grassColor = if (nvgActive) Color(0xFF0B291D) else lerp(Color(0xFF0B1322), Color(0xFF10202E), atmoCycle * 0.6f)
-    drawGroundQuad3D(cam, 0.03f, 0.03f, 0.97f, 0.97f, grassColor)
+    // 2. Ground Plane (Expanded Bumi Papan Selaras Housing Grid)
+    val grassColor = if (nvgActive) Color(0xFF0B291D) else lerp(Color(0xFF0B1322), Color(0xFF10202E), atmoCycle * 0.55f)
+    drawGroundQuad3D(cam, 0.02f, 0.02f, 0.98f, 0.98f, grassColor)
 
     // Tactical grid lines on grass
-    val gridColor = if (nvgActive) Color(0xFF10B981).copy(alpha = 0.18f) else Color(0xFF1E293B).copy(alpha = 0.45f)
-    for (i in 1..9) {
-        val t = i / 10f
-        drawGroundLine3D(cam, t, 0.05f, t, 0.95f, gridColor, 1.3f)
-        drawGroundLine3D(cam, 0.05f, t, 0.95f, t, gridColor, 1.3f)
+    val gridColor = if (nvgActive) Color(0xFF10B981).copy(alpha = 0.16f) else Color(0xFF1E293B).copy(alpha = 0.42f)
+    for (i in 1..11) {
+        val t = i / 12f
+        drawGroundLine3D(cam, t, 0.03f, t, 0.97f, gridColor, 1.2f)
+        drawGroundLine3D(cam, 0.03f, t, 0.97f, t, gridColor, 1.2f)
     }
 
     // Paved Asphalt Streets connecting Krisan, Cempaka, Cemara, Akasia, Camelia, Flamboyan & Masjid
     val roadColor = if (nvgActive) Color(0xFF133628) else Color(0xFF1C2434)
-    drawGroundQuad3D(cam, 0.06f, 0.265f, 0.94f, 0.325f, roadColor) // Jl. Krisan - Cempaka
-    drawGroundQuad3D(cam, 0.06f, 0.675f, 0.94f, 0.735f, roadColor) // Jl. Camelia - Flamboyan
-    drawGroundQuad3D(cam, 0.06f, 0.07f, 0.105f, 0.93f, roadColor)  // Gang Barat
-    drawGroundQuad3D(cam, 0.895f, 0.07f, 0.94f, 0.93f, roadColor)  // Gang Timur
-    drawGroundQuad3D(cam, 0.31f, 0.07f, 0.37f, 0.93f, roadColor)   // Poros Barat Masjid
-    drawGroundQuad3D(cam, 0.63f, 0.07f, 0.69f, 0.93f, roadColor)   // Poros Timur Masjid
-    drawGroundQuad3D(cam, 0.46f, 0.06f, 0.54f, 0.94f, roadColor)   // Poros Utama Masjid (U-S)
-    drawGroundQuad3D(cam, 0.26f, 0.47f, 0.74f, 0.53f, roadColor)   // Jalan Tengah Masjid
+    drawGroundQuad3D(cam, 0.04f, 0.265f, 0.96f, 0.325f, roadColor) // Jl. Krisan - Cempaka
+    drawGroundQuad3D(cam, 0.04f, 0.675f, 0.96f, 0.735f, roadColor) // Jl. Camelia - Flamboyan
+    drawGroundQuad3D(cam, 0.05f, 0.05f, 0.105f, 0.95f, roadColor)  // Gang Barat
+    drawGroundQuad3D(cam, 0.895f, 0.05f, 0.95f, 0.95f, roadColor)  // Gang Timur
+    drawGroundQuad3D(cam, 0.31f, 0.05f, 0.365f, 0.95f, roadColor)  // Poros Barat Masjid
+    drawGroundQuad3D(cam, 0.635f, 0.05f, 0.69f, 0.95f, roadColor)  // Poros Timur Masjid
+    drawGroundQuad3D(cam, 0.46f, 0.04f, 0.54f, 0.96f, roadColor)   // Poros Utama Masjid (U-S)
+    drawGroundQuad3D(cam, 0.25f, 0.47f, 0.75f, 0.53f, roadColor)   // Jalan Tengah Masjid
+    drawGroundQuad3D(cam, 0.05f, 0.115f, 0.95f, 0.14f, roadColor)  // Gang Klaster Utara
+    drawGroundQuad3D(cam, 0.05f, 0.86f, 0.95f, 0.885f, roadColor)  // Gang Klaster Selatan
 
-    // Wet Asphalt Reflections / Glossy Rain Puddles (4D Realism)
-    val puddleGlow = if (nvgActive) Color(0xFF34D399).copy(alpha = 0.20f) else lerp(Color(0xFF38BDF8), Color(0xFFF59E0B), atmoCycle).copy(alpha = 0.18f)
+    // Wet Asphalt Reflections / Glossy Rain Puddles
+    val puddleGlow = if (nvgActive) Color(0xFF34D399).copy(alpha = 0.18f) else lerp(Color(0xFF38BDF8), Color(0xFFF59E0B), atmoCycle).copy(alpha = 0.16f)
     listOf(
-        Triple(0.34f, 0.30f, 0.03f),
-        Triple(0.66f, 0.30f, 0.028f),
-        Triple(0.50f, 0.63f, 0.035f),
-        Triple(0.34f, 0.70f, 0.032f),
-        Triple(0.66f, 0.70f, 0.026f)
+        Triple(0.34f, 0.30f, 0.015f),
+        Triple(0.66f, 0.30f, 0.015f),
+        Triple(0.50f, 0.63f, 0.018f),
+        Triple(0.34f, 0.70f, 0.016f),
+        Triple(0.66f, 0.70f, 0.014f),
+        Triple(0.50f, 0.295f, 0.015f)
     ).forEach { (rx, ry, rad) ->
         drawGroundQuad3D(cam, rx - rad, ry - rad * 0.6f, rx + rad, ry + rad * 0.6f, puddleGlow, y = 0.05f)
     }
 
     // Road center stripes
-    val stripe = Color(0xFF94A3B8).copy(alpha = 0.65f)
-    drawGroundLine3D(cam, 0.08f, 0.295f, 0.92f, 0.295f, stripe, 2.2f)
-    drawGroundLine3D(cam, 0.08f, 0.705f, 0.92f, 0.705f, stripe, 2.2f)
-    drawGroundLine3D(cam, 0.50f, 0.08f, 0.50f, 0.92f, stripe, 2.2f)
-    drawGroundLine3D(cam, 0.34f, 0.09f, 0.34f, 0.91f, stripe, 1.8f)
-    drawGroundLine3D(cam, 0.66f, 0.09f, 0.66f, 0.91f, stripe, 1.8f)
+    val stripe = Color(0xFF94A3B8).copy(alpha = 0.60f)
+    drawGroundLine3D(cam, 0.06f, 0.295f, 0.94f, 0.295f, stripe, 2.0f)
+    drawGroundLine3D(cam, 0.06f, 0.705f, 0.94f, 0.705f, stripe, 2.0f)
+    drawGroundLine3D(cam, 0.50f, 0.05f, 0.50f, 0.95f, stripe, 2.0f)
+    drawGroundLine3D(cam, 0.337f, 0.06f, 0.337f, 0.94f, stripe, 1.6f)
+    drawGroundLine3D(cam, 0.662f, 0.06f, 0.662f, 0.94f, stripe, 1.6f)
 
-    // Mosque Courtyard Plaza (Area Masjid Agung Selaras)
+    // Mosque Courtyard Plaza
     drawGroundQuad3D(cam, 0.40f, 0.40f, 0.60f, 0.60f, if (nvgActive) Color(0xFF065F46) else Color(0xFF0F766E).copy(alpha = 0.55f), y = 0.02f)
 
-    // 2b. Real-Time Sharp Directional Ground Shadows under Buildings & Mosque
-    val shadowColor = Color(0xFF020617).copy(alpha = 0.55f)
-    EstateWorld.buildings.forEach { b ->
-        drawGroundQuad3D(
-            cam,
-            (b.minX + shadowShiftX).coerceIn(0.03f, 0.96f),
-            (b.minY + shadowShiftY).coerceIn(0.03f, 0.96f),
-            (b.maxX + shadowShiftX).coerceIn(0.04f, 0.97f),
-            (b.maxY + shadowShiftY).coerceIn(0.04f, 0.97f),
-            shadowColor,
-            y = 0.03f
-        )
+    // 2b. Directional Ground Shadows under near Buildings
+    val shadowColor = Color(0xFF020617).copy(alpha = 0.50f)
+    EstateWorld.allBuildings.forEach { b ->
+        val center = normToWorld((b.minX + b.maxX) * 0.5f, (b.minY + b.maxY) * 0.5f, 0f)
+        if (distance3D(cam.pos, center) < 260f) {
+            drawGroundQuad3D(
+                cam,
+                (b.minX + shadowShiftX).coerceIn(0.02f, 0.97f),
+                (b.minY + shadowShiftY).coerceIn(0.02f, 0.97f),
+                (b.maxX + shadowShiftX).coerceIn(0.03f, 0.98f),
+                (b.maxY + shadowShiftY).coerceIn(0.03f, 0.98f),
+                shadowColor,
+                y = 0.03f
+            )
+        }
     }
 
-    // 3. Collect Depth-Sorted 3D Objects
-    val depthObjects = ArrayList<DepthObject>(72)
+    // 3. Collect Depth-Sorted 3D Objects with Distance Culling
+    val depthObjects = ArrayList<DepthObject>(96)
+    val cullDist = 265f
 
-    // 3a. 3D Buildings (6 Residential Blocks + Iconic Masjid Agung)
-    EstateWorld.buildings.forEach { b ->
+    // 3a. 3D Buildings (Main 7 Blocks/Masjid + 8 Sub-Clusters)
+    EstateWorld.allBuildings.forEach { b ->
         val center = normToWorld((b.minX + b.maxX) * 0.5f, (b.minY + b.maxY) * 0.5f, b.height3D * 0.45f)
-        val proj = cam.project(center)
-        val dist = proj?.second ?: distance3D(cam.pos, center)
-        depthObjects.add(DepthObject(dist) {
-            if (b.isMosque) {
-                drawMosque3D(cam, b, nvgActive, animClock, textMeasurer)
-            } else {
-                drawBuilding3D(cam, b, nvgActive, textMeasurer)
-            }
-        })
+        val dist = distance3D(cam.pos, center)
+        if (dist <= cullDist) {
+            depthObjects.add(DepthObject(dist) {
+                if (b.isMosque) {
+                    drawMosque3D(cam, b, nvgActive, animClock, textMeasurer)
+                } else {
+                    drawBuilding3D(cam, b, nvgActive, textMeasurer)
+                }
+            })
+        }
     }
 
-    // 3b. Parked Resident & Patrol Vehicles (with Headlight / Taillight Reflections)
-    estateVehicles.forEach { car ->
-        val cw = normToWorld(car.nx, car.ny, 1f)
-        depthObjects.add(DepthObject(distance3D(cam.pos, cw)) {
-            drawCar3D(cam, car, nvgActive, animClock)
-        })
+    // 3b. Drivable Cars & Motorcycles (Mobil Patroli & Motor Patroli)
+    vehicles.forEach { veh ->
+        val vw = normToWorld(veh.x, veh.y, 1f)
+        val dist = distance3D(cam.pos, vw)
+        if (dist <= cullDist) {
+            val isMyVehicle = veh.id == mountedVehicleId
+            depthObjects.add(DepthObject(dist) {
+                drawVehicle3D(
+                    cam = cam,
+                    vehicle = veh,
+                    isMountedByMe = isMyVehicle,
+                    uniformId = localUniformId,
+                    weaponId = localWeaponId,
+                    attributeId = localAttributeId,
+                    nvgActive = nvgActive,
+                    animClock = animClock,
+                    textMeasurer = textMeasurer
+                )
+            })
+        }
     }
 
     // 3c. North & South 3D Gates
     listOf(
-        Triple("GERBANG UTARA", 0.50f to 0.08f, GateStatus.safeValueOf(room.northGateStatus)),
-        Triple("GERBANG SELATAN", 0.50f to 0.92f, GateStatus.safeValueOf(room.southGateStatus))
+        Triple("GERBANG UTARA", 0.50f to 0.05f, GateStatus.safeValueOf(room.northGateStatus)),
+        Triple("GERBANG SELATAN", 0.50f to 0.95f, GateStatus.safeValueOf(room.southGateStatus))
     ).forEach { (label, pos, status) ->
         val gw = normToWorld(pos.first, pos.second, 2f)
-        depthObjects.add(DepthObject(distance3D(cam.pos, gw)) {
-            drawGate3D(cam, pos.first, pos.second, status, label, textMeasurer)
-        })
+        val dist = distance3D(cam.pos, gw)
+        if (dist <= cullDist) {
+            depthObjects.add(DepthObject(dist) {
+                drawGate3D(cam, pos.first, pos.second, status, label, textMeasurer)
+            })
+        }
     }
 
     // 3d. Street Lamps & Shade Trees around Bumi Papan Selaras
@@ -296,13 +321,19 @@ fun DrawScope.renderEstate3DScene(
         0.38f to 0.26f, 0.62f to 0.26f,
         0.38f to 0.74f, 0.62f to 0.74f,
         0.27f to 0.42f, 0.73f to 0.42f,
-        0.27f to 0.58f, 0.73f to 0.58f
+        0.27f to 0.58f, 0.73f to 0.58f,
+        0.12f to 0.26f, 0.88f to 0.26f,
+        0.12f to 0.74f, 0.88f to 0.74f,
+        0.45f to 0.14f, 0.55f to 0.86f
     )
     lampCoords.forEach { (lx, ly) ->
         val lw = normToWorld(lx, ly, 2.5f)
-        depthObjects.add(DepthObject(distance3D(cam.pos, lw)) {
-            drawStreetLamp3D(cam, lx, ly, nvgActive)
-        })
+        val dist = distance3D(cam.pos, lw)
+        if (dist <= 210f) {
+            depthObjects.add(DepthObject(dist) {
+                drawStreetLamp3D(cam, lx, ly, nvgActive)
+            })
+        }
     }
 
     val treeCoords = listOf(
@@ -310,13 +341,19 @@ fun DrawScope.renderEstate3DScene(
         0.41f to 0.61f, 0.59f to 0.61f,
         0.27f to 0.37f, 0.73f to 0.37f,
         0.27f to 0.63f, 0.73f to 0.63f,
-        0.13f to 0.36f, 0.87f to 0.36f
+        0.13f to 0.36f, 0.87f to 0.36f,
+        0.13f to 0.64f, 0.87f to 0.64f,
+        0.38f to 0.11f, 0.62f to 0.11f,
+        0.38f to 0.89f, 0.62f to 0.89f
     )
     treeCoords.forEach { (tx, ty) ->
         val tw = normToWorld(tx, ty, 2f)
-        depthObjects.add(DepthObject(distance3D(cam.pos, tw)) {
-            drawTree3D(cam, tx, ty, shadowShiftX, shadowShiftY)
-        })
+        val dist = distance3D(cam.pos, tw)
+        if (dist <= 220f) {
+            depthObjects.add(DepthObject(dist) {
+                drawTree3D(cam, tx, ty, shadowShiftX, shadowShiftY)
+            })
+        }
     }
 
     // 3e. Tactical Ping 3D Light Pillars
@@ -332,30 +369,31 @@ fun DrawScope.renderEstate3DScene(
         }
         depthObjects.add(DepthObject(distance3D(cam.pos, pw)) {
             val baseProj = cam.project(normToWorld(px, py, 0f))
-            val topProj = cam.project(normToWorld(px, py, 9f))
+            val topProj = cam.project(normToWorld(px, py, 14f))
             if (baseProj != null && topProj != null) {
                 val (bPt, bDepth) = baseProj
                 val (tPt, _) = topProj
-                val r = (180f / bDepth).coerceIn(8f, 36f) * pulseScale
+                val r = (240f / bDepth).coerceIn(8f, 40f) * pulseScale
                 drawCircle(pingColor.copy(alpha = 0.25f), r, bPt)
-                drawLine(pingColor.copy(alpha = 0.85f), bPt, tPt, strokeWidth = (75f / bDepth).coerceIn(3f, 12f), cap = StrokeCap.Round)
-                drawCircle(pingColor, (60f / bDepth).coerceIn(4f, 12f), tPt)
+                drawLine(pingColor.copy(alpha = 0.85f), bPt, tPt, strokeWidth = (90f / bDepth).coerceIn(3f, 12f), cap = StrokeCap.Round)
+                drawCircle(pingColor, (70f / bDepth).coerceIn(4f, 12f), tPt)
             }
         })
     }
 
-    // 3f. Thief 3D Character
-    if (room.thiefSpotted) {
+    // 3f. Thief 3D Character (hidden behind buildings when far & out of sight!)
+    if (room.thiefSpotted && thiefVisible) {
         val (tx, ty) = thiefPos
         val tw = normToWorld(tx, ty, 1.5f)
         depthObjects.add(DepthObject(distance3D(cam.pos, tw)) {
-            drawThief3D(cam, tx, ty, thiefStunned, animClock, pulseScale, nvgActive, textMeasurer)
+            drawThief3D(cam, tx, ty, thiefStunned, thiefWalkPhase, animClock, pulseScale, nvgActive, textMeasurer)
         })
     }
 
-    // 3g. Multiplayer Guard Characters
+    // 3g. Multiplayer Guard Characters (only draw foot character if NOT mounted in vehicle)
     players.forEach { player ->
         val isMe = player.userId == currentUserId
+        if (isMe && isInVehicle) return@forEach
         val px = if (isMe) localPlayerX else player.posX.toFloat()
         val py = if (isMe) localPlayerY else player.posY.toFloat()
         val facing = if (isMe) localFacingDeg else player.facingDeg.toFloat()
@@ -364,28 +402,31 @@ fun DrawScope.renderEstate3DScene(
         val wId = if (isMe) localWeaponId else player.weaponId
         val aId = if (isMe) localAttributeId else player.attributeId
         val pw = normToWorld(px, py, 1.5f)
-        depthObjects.add(DepthObject(distance3D(cam.pos, pw)) {
-            drawGuard3D(
-                cam = cam,
-                nx = px,
-                ny = py,
-                facingDeg = facing,
-                walkPhase = walkPhase,
-                uniformId = uId,
-                weaponId = wId,
-                attributeId = aId,
-                isMe = isMe,
-                isThiefRole = player.role == PlayerRole.THIEF.name,
-                pttActive = player.pttActive,
-                label = if (isMe) "ANDA" else player.displayName.take(9),
-                pulseScale = pulseScale,
-                animClock = animClock,
-                textMeasurer = textMeasurer
-            )
-        })
+        val dist = distance3D(cam.pos, pw)
+        if (dist <= cullDist) {
+            depthObjects.add(DepthObject(dist) {
+                drawGuard3D(
+                    cam = cam,
+                    nx = px,
+                    ny = py,
+                    facingDeg = facing,
+                    walkPhase = walkPhase,
+                    uniformId = uId,
+                    weaponId = wId,
+                    attributeId = aId,
+                    isMe = isMe,
+                    isThiefRole = player.role == PlayerRole.THIEF.name,
+                    pttActive = player.pttActive,
+                    label = if (isMe) "ANDA" else player.displayName.take(9),
+                    pulseScale = pulseScale,
+                    animClock = animClock,
+                    textMeasurer = textMeasurer
+                )
+            })
+        }
     }
 
-    if (players.none { it.userId == currentUserId }) {
+    if (!isInVehicle && players.none { it.userId == currentUserId }) {
         val pw = normToWorld(localPlayerX, localPlayerY, 1.5f)
         depthObjects.add(DepthObject(distance3D(cam.pos, pw)) {
             drawGuard3D(
@@ -412,19 +453,19 @@ fun DrawScope.renderEstate3DScene(
     depthObjects.sortByDescending { it.depth }
     depthObjects.forEach { it.draw(this) }
 
-    // 4. Active 3D Projectiles (Player Bullets, Grenades, Rockets & Thief Return Shots)
+    // 4. Active 3D Projectiles
     projectiles.forEach { proj ->
         val p = proj.progress.coerceIn(0f, 1f)
-        val s3 = normToWorld(proj.fromX, proj.fromY, 2.2f)
-        val e3 = normToWorld(proj.toX, proj.toY, if (proj.isArc) 0.5f else 2.0f)
-        val arcLift = if (proj.isArc) sin(p * PI.toFloat()) * 6.5f else 0f
+        val s3 = normToWorld(proj.fromX, proj.fromY, 2.4f)
+        val e3 = normToWorld(proj.toX, proj.toY, if (proj.isArc) 0.5f else 2.2f)
+        val arcLift = if (proj.isArc) sin(p * PI.toFloat()) * 11f else 0f
         val cur3 = Vec3(
             s3.x + (e3.x - s3.x) * p,
             s3.y + (e3.y - s3.y) * p + arcLift,
             s3.z + (e3.z - s3.z) * p
         )
         val tailP = (p - 0.14f).coerceAtLeast(0f)
-        val tailLift = if (proj.isArc) sin(tailP * PI.toFloat()) * 6.5f else 0f
+        val tailLift = if (proj.isArc) sin(tailP * PI.toFloat()) * 11f else 0f
         val tail3 = Vec3(
             s3.x + (e3.x - s3.x) * tailP,
             s3.y + (e3.y - s3.y) * tailP + tailLift,
@@ -445,12 +486,12 @@ fun DrawScope.renderEstate3DScene(
         }
     }
 
-    // 5. High-Particle 4D VFX (Dust, Sparks, Smoke Plumes, Fireballs & Blast Rings)
+    // 5. High-Particle 4D VFX
     particles.forEach { pt ->
         val alpha = (pt.life / pt.maxLife).coerceIn(0f, 1f)
         val screenProj = cam.project(Vec3(pt.x, pt.y, pt.z)) ?: return@forEach
         val (pos2D, depth) = screenProj
-        val scaledR = ((pt.size * 22f) / depth).coerceIn(2f, 90f)
+        val scaledR = ((pt.size * 24f) / depth).coerceIn(2f, 92f)
         if (pt.isRing) {
             val ringRadius = scaledR * (1.8f - alpha * 0.9f)
             drawCircle(
@@ -515,6 +556,7 @@ private fun DrawScope.drawBuilding3D(
     nvgActive: Boolean,
     textMeasurer: TextMeasurer
 ) {
+    val hWall = b.height3D * 1.15f
     val cornersBase = listOf(
         normToWorld(b.minX, b.minY, 0f),
         normToWorld(b.maxX, b.minY, 0f),
@@ -522,10 +564,10 @@ private fun DrawScope.drawBuilding3D(
         normToWorld(b.minX, b.maxY, 0f)
     )
     val cornersTop = listOf(
-        normToWorld(b.minX, b.minY, b.height3D),
-        normToWorld(b.maxX, b.minY, b.height3D),
-        normToWorld(b.maxX, b.maxY, b.height3D),
-        normToWorld(b.minX, b.maxY, b.height3D)
+        normToWorld(b.minX, b.minY, hWall),
+        normToWorld(b.maxX, b.minY, hWall),
+        normToWorld(b.maxX, b.maxY, hWall),
+        normToWorld(b.minX, b.maxY, hWall)
     )
 
     val pBase = cornersBase.map { cam.project(it)?.first }
@@ -535,7 +577,7 @@ private fun DrawScope.drawBuilding3D(
         val j = (i + 1) % 4
         val mid = Vec3(
             (cornersBase[i].x + cornersBase[j].x) * 0.5f,
-            b.height3D * 0.5f,
+            hWall * 0.5f,
             (cornersBase[i].z + cornersBase[j].z) * 0.5f
         )
         Triple(i, j, distance3D(cam.pos, mid))
@@ -545,7 +587,7 @@ private fun DrawScope.drawBuilding3D(
     val roofTint = if (nvgActive) Color(0xFF19523B) else b.roofColor
     val trimTint = if (nvgActive) Color(0xFF34D399) else b.accentColor
 
-    faces.forEach { (i, j, _) ->
+    faces.forEach { (i, j, dist) ->
         val b1 = pBase[i] ?: return@forEach
         val b2 = pBase[j] ?: return@forEach
         val t2 = pTop[j] ?: return@forEach
@@ -558,16 +600,18 @@ private fun DrawScope.drawBuilding3D(
             close()
         }
         drawPath(facePath, wallTint)
-        drawPath(facePath, trimTint.copy(alpha = 0.48f), style = Stroke(width = 1.6f))
+        drawPath(facePath, trimTint.copy(alpha = 0.45f), style = Stroke(width = 1.6f))
 
-        for (row in 1..3) {
-            val fy = row * 0.24f
-            for (col in 1..3) {
-                val fx = col * 0.24f
-                val w1 = Offset(b1.x + (b2.x - b1.x) * fx, b1.y + (t1.y - b1.y) * fy)
-                val w2 = Offset(b1.x + (b2.x - b1.x) * (fx + 0.08f), b1.y + (t1.y - b1.y) * fy)
-                val winColor = if ((row + col + i) % 2 == 0) Color(0xFFFDE047).copy(alpha = 0.60f) else trimTint.copy(alpha = 0.35f)
-                drawLine(winColor, w1, w2, strokeWidth = 3.2f)
+        if (dist < 175f) {
+            for (row in 1..3) {
+                val fy = row * 0.24f
+                for (col in 1..3) {
+                    val fx = col * 0.24f
+                    val w1 = Offset(b1.x + (b2.x - b1.x) * fx, b1.y + (t1.y - b1.y) * fy)
+                    val w2 = Offset(b1.x + (b2.x - b1.x) * (fx + 0.08f), b1.y + (t1.y - b1.y) * fy)
+                    val winColor = if ((row + col + i) % 2 == 0) Color(0xFFFDE047).copy(alpha = 0.58f) else trimTint.copy(alpha = 0.35f)
+                    drawLine(winColor, w1, w2, strokeWidth = 3.2f)
+                }
             }
         }
     }
@@ -585,11 +629,11 @@ private fun DrawScope.drawBuilding3D(
             close()
         }
         drawPath(roofPath, roofTint)
-        drawPath(roofPath, trimTint.copy(alpha = 0.85f), style = Stroke(width = 2.2f))
+        drawPath(roofPath, trimTint.copy(alpha = 0.85f), style = Stroke(width = 2.0f))
     }
 
-    val labelProj = cam.project(normToWorld((b.minX + b.maxX) * 0.5f, (b.minY + b.maxY) * 0.5f, b.height3D + 2.2f))
-    if (labelProj != null && labelProj.second < 78f) {
+    val labelProj = cam.project(normToWorld((b.minX + b.maxX) * 0.5f, (b.minY + b.maxY) * 0.5f, hWall + 2.5f))
+    if (labelProj != null && labelProj.second < 125f) {
         val measured = textMeasurer.measure(
             b.label,
             TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color.White)
@@ -605,6 +649,7 @@ private fun DrawScope.drawMosque3D(
     animClock: Float,
     textMeasurer: TextMeasurer
 ) {
+    val hWall = b.height3D * 1.25f
     val cornersBase = listOf(
         normToWorld(b.minX, b.minY, 0f),
         normToWorld(b.maxX, b.minY, 0f),
@@ -612,10 +657,10 @@ private fun DrawScope.drawMosque3D(
         normToWorld(b.minX, b.maxY, 0f)
     )
     val cornersTop = listOf(
-        normToWorld(b.minX, b.minY, b.height3D),
-        normToWorld(b.maxX, b.minY, b.height3D),
-        normToWorld(b.maxX, b.maxY, b.height3D),
-        normToWorld(b.minX, b.maxY, b.height3D)
+        normToWorld(b.minX, b.minY, hWall),
+        normToWorld(b.maxX, b.minY, hWall),
+        normToWorld(b.maxX, b.maxY, hWall),
+        normToWorld(b.minX, b.maxY, hWall)
     )
     val pBase = cornersBase.map { cam.project(it)?.first }
     val pTop = cornersTop.map { cam.project(it)?.first }
@@ -626,7 +671,7 @@ private fun DrawScope.drawMosque3D(
 
     val faces = (0..3).map { i ->
         val j = (i + 1) % 4
-        val mid = Vec3((cornersBase[i].x + cornersBase[j].x) * 0.5f, b.height3D * 0.5f, (cornersBase[i].z + cornersBase[j].z) * 0.5f)
+        val mid = Vec3((cornersBase[i].x + cornersBase[j].x) * 0.5f, hWall * 0.5f, (cornersBase[i].z + cornersBase[j].z) * 0.5f)
         Triple(i, j, distance3D(cam.pos, mid))
     }.sortedByDescending { it.third }
 
@@ -644,10 +689,9 @@ private fun DrawScope.drawMosque3D(
         }
         drawPath(facePath, wallTint.copy(alpha = 0.92f))
         drawPath(facePath, domeColor, style = Stroke(width = 1.8f))
-        // Arched glowing mosque doorway/windows
         val midBot = Offset((b1.x + b2.x) * 0.5f, (b1.y + b2.y) * 0.5f)
         val archTop = Offset((t1.x + t2.x) * 0.5f, ((t1.y + t2.y) * 0.5f + midBot.y) * 0.5f)
-        drawLine(Color(0xFFFDE047).copy(alpha = 0.72f), midBot, archTop, strokeWidth = 7f, cap = StrokeCap.Round)
+        drawLine(goldAccent.copy(alpha = 0.72f), midBot, archTop, strokeWidth = 7f, cap = StrokeCap.Round)
     }
 
     if (pTop.all { it != null }) {
@@ -662,36 +706,33 @@ private fun DrawScope.drawMosque3D(
         drawPath(roofPath, goldAccent, style = Stroke(width = 2f))
     }
 
-    // Main Emerald-Gold Dome
     val cx = (b.minX + b.maxX) * 0.5f
     val cy = (b.minY + b.maxY) * 0.5f
-    val domeProj = cam.project(normToWorld(cx, cy, b.height3D + 2.6f))
+    val domeProj = cam.project(normToWorld(cx, cy, hWall + 3.4f))
     if (domeProj != null) {
         val (dPt, depth) = domeProj
-        val domeR = (210f / depth).coerceIn(10f, 44f)
+        val domeR = (280f / depth).coerceIn(10f, 52f)
         drawCircle(domeColor, radius = domeR, center = dPt)
         drawCircle(goldAccent.copy(alpha = 0.75f), radius = domeR, center = dPt, style = Stroke(width = 2.4f))
         drawCircle(goldAccent.copy(alpha = 0.45f), radius = domeR * 0.4f, center = Offset(dPt.x - domeR * 0.2f, dPt.y - domeR * 0.25f))
-        // Spire crescent on top of dome
         val spireTop = Offset(dPt.x, dPt.y - domeR * 1.45f)
         drawLine(goldAccent, Offset(dPt.x, dPt.y - domeR * 0.8f), spireTop, strokeWidth = 3f, cap = StrokeCap.Round)
         drawCircle(goldAccent, radius = (domeR * 0.22f).coerceIn(3f, 8f), center = spireTop)
     }
 
-    // Tall Mosque Minaret Tower on Northeast corner
-    val minBase = cam.project(normToWorld(b.maxX + 0.01f, b.minY - 0.01f, 0f))
-    val minTop = cam.project(normToWorld(b.maxX + 0.01f, b.minY - 0.01f, b.height3D + 11f))
+    val minBase = cam.project(normToWorld(b.maxX + 0.008f, b.minY - 0.008f, 0f))
+    val minTop = cam.project(normToWorld(b.maxX + 0.008f, b.minY - 0.008f, hWall + 14f))
     if (minBase != null && minTop != null) {
         val (mb, mDepth) = minBase
         val mt = minTop.first
-        drawLine(Color(0xFFE2E8F0), mb, mt, strokeWidth = (120f / mDepth).coerceIn(4f, 13f), cap = StrokeCap.Square)
-        drawCircle(domeColor, radius = (85f / mDepth).coerceIn(4f, 12f), center = mt)
+        drawLine(Color(0xFFE2E8F0), mb, mt, strokeWidth = (150f / mDepth).coerceIn(4f, 14f), cap = StrokeCap.Square)
+        drawCircle(domeColor, radius = (100f / mDepth).coerceIn(4f, 12f), center = mt)
         val beaconAlpha = 0.55f + sin(animClock * 3f) * 0.35f
-        drawCircle(goldAccent.copy(alpha = beaconAlpha), radius = (55f / mDepth).coerceIn(3f, 9f), center = Offset(mt.x, mt.y - 8f))
+        drawCircle(goldAccent.copy(alpha = beaconAlpha), radius = (65f / mDepth).coerceIn(3f, 9f), center = Offset(mt.x, mt.y - 8f))
     }
 
-    val labelProj = cam.project(normToWorld(cx, cy, b.height3D + 9.5f))
-    if (labelProj != null && labelProj.second < 85f) {
+    val labelProj = cam.project(normToWorld(cx, cy, hWall + 12f))
+    if (labelProj != null && labelProj.second < 150f) {
         val measured = textMeasurer.measure(
             "MASJID AGUNG SELARAS",
             TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = goldAccent)
@@ -700,39 +741,144 @@ private fun DrawScope.drawMosque3D(
     }
 }
 
-private fun DrawScope.drawCar3D(cam: Camera3D, car: ParkedCar, nvgActive: Boolean, animClock: Float) {
-    val base = cam.project(normToWorld(car.nx, car.ny, 0.2f)) ?: return
-    val roof = cam.project(normToWorld(car.nx, car.ny, 1.8f)) ?: return
+private fun DrawScope.drawVehicle3D(
+    cam: Camera3D,
+    vehicle: WorldVehicle,
+    isMountedByMe: Boolean,
+    uniformId: String,
+    weaponId: String,
+    attributeId: String,
+    nvgActive: Boolean,
+    animClock: Float,
+    textMeasurer: TextMeasurer
+) {
+    val base = cam.project(normToWorld(vehicle.x, vehicle.y, 0.25f)) ?: return
+    val roof = cam.project(normToWorld(vehicle.x, vehicle.y, if (vehicle.type == VehicleType.CAR) 2.6f else 2.2f)) ?: return
     val (bPt, depth) = base
     val rPt = roof.first
-    val s = (130f / depth).coerceIn(4f, 22f)
-    val wCar = if (car.horizontal) s * 2.2f else s * 1.15f
-    val hCar = if (car.horizontal) s * 1.0f else s * 1.6f
-    val bodyTint = if (nvgActive) Color(0xFF10B981) else car.bodyColor
 
-    // Ground shadow
-    drawOval(Color.Black.copy(alpha = 0.45f), Offset(bPt.x - wCar * 0.58f, bPt.y - hCar * 0.35f), Size(wCar * 1.16f, hCar * 0.85f))
-    // Lower chassis
-    drawRoundRect(
-        color = bodyTint,
-        topLeft = Offset(bPt.x - wCar * 0.5f, bPt.y - hCar * 0.5f),
-        size = Size(wCar, hCar * 0.8f),
-        cornerRadius = CornerRadiusCompat(4f)
-    )
-    // Glossy roof cabin reflection
-    drawRoundRect(
-        color = Color(0xFF93C5FD).copy(alpha = 0.65f),
-        topLeft = Offset(rPt.x - wCar * 0.32f, rPt.y - hCar * 0.32f),
-        size = Size(wCar * 0.64f, hCar * 0.5f),
-        cornerRadius = CornerRadiusCompat(3f)
-    )
-    // Patrol car siren & headlights
-    if (car.isPatrolCar) {
-        val redBlue = if ((animClock * 4f).toInt() % 2 == 0) Color(0xFF38BDF8) else Color(0xFFEF4444)
-        drawCircle(redBlue, radius = (s * 0.28f).coerceIn(2f, 6f), center = rPt)
+    val bodyTint = if (nvgActive) Color(0xFF10B981) else vehicle.bodyColor
+    val trimTint = if (nvgActive) Color(0xFF6EE7B7) else vehicle.accentColor
+    val relRad = Math.toRadians(vehicle.facingDeg.toDouble()).toFloat() - cam.yaw
+    val dirX = sin(relRad)
+    val dirZ = cos(relRad)
+    val horizontalLook = kotlin.math.abs(dirX) > kotlin.math.abs(dirZ)
+
+    if (vehicle.type == VehicleType.CAR) {
+        val s = (195f / depth).coerceIn(5f, 34f)
+        val wCar = if (horizontalLook) s * 2.5f else s * 1.45f
+        val hCar = if (horizontalLook) s * 1.1f else s * 1.85f
+
+        if (isMountedByMe) {
+            drawOval(
+                color = Color(0xFFFBBF24).copy(alpha = 0.45f),
+                topLeft = Offset(bPt.x - wCar * 0.72f, bPt.y - hCar * 0.55f),
+                size = Size(wCar * 1.44f, hCar * 1.1f),
+                style = Stroke(width = 2.6f)
+            )
+        }
+
+        // Ground shadow
+        drawOval(
+            Color.Black.copy(alpha = 0.48f),
+            Offset(bPt.x - wCar * 0.60f, bPt.y - hCar * 0.35f),
+            Size(wCar * 1.2f, hCar * 0.85f)
+        )
+        // Lower car chassis
+        drawRoundRect(
+            color = bodyTint,
+            topLeft = Offset(bPt.x - wCar * 0.5f, bPt.y - hCar * 0.5f),
+            size = Size(wCar, hCar * 0.82f),
+            cornerRadius = CornerRadius(5f, 5f)
+        )
+        drawRoundRect(
+            color = trimTint.copy(alpha = 0.75f),
+            topLeft = Offset(bPt.x - wCar * 0.5f, bPt.y - hCar * 0.5f),
+            size = Size(wCar, hCar * 0.82f),
+            cornerRadius = CornerRadius(5f, 5f),
+            style = Stroke(width = 1.6f)
+        )
+        // Cabin glass roof
+        drawRoundRect(
+            color = Color(0xFF93C5FD).copy(alpha = 0.72f),
+            topLeft = Offset(rPt.x - wCar * 0.34f, rPt.y - hCar * 0.32f),
+            size = Size(wCar * 0.68f, hCar * 0.52f),
+            cornerRadius = CornerRadius(4f, 4f)
+        )
+        // Patrol Siren Lightbar
+        val sirenColor = if ((animClock * 5f).toInt() % 2 == 0) Color(0xFF38BDF8) else Color(0xFFEF4444)
+        drawCircle(sirenColor, radius = (s * 0.32f).coerceIn(2.5f, 8f), center = rPt)
+        // Front Headlights along heading
+        val headOffset = Offset(dirX * wCar * 0.45f, -dirZ * hCar * 0.38f)
+        drawCircle(Color(0xFFFDE047).copy(alpha = 0.85f), radius = (s * 0.25f).coerceIn(2f, 6f), center = bPt + headOffset)
+    } else {
+        // Motorcycle / Sport Scooter (Motor Patroli)
+        val s = (170f / depth).coerceIn(4f, 28f)
+        val wMoto = if (horizontalLook) s * 1.75f else s * 0.85f
+        val hMoto = if (horizontalLook) s * 0.75f else s * 1.35f
+
+        if (isMountedByMe) {
+            drawOval(
+                color = Color(0xFFFBBF24).copy(alpha = 0.45f),
+                topLeft = Offset(bPt.x - wMoto * 0.85f, bPt.y - hMoto * 0.65f),
+                size = Size(wMoto * 1.7f, hMoto * 1.3f),
+                style = Stroke(width = 2.4f)
+            )
+        }
+
+        // Shadow & Tires
+        drawOval(Color.Black.copy(alpha = 0.44f), Offset(bPt.x - wMoto * 0.55f, bPt.y - hMoto * 0.3f), Size(wMoto * 1.1f, hMoto * 0.75f))
+        drawCircle(Color(0xFF0F172A), radius = (s * 0.42f).coerceIn(2.5f, 8f), center = Offset(bPt.x - dirX * s * 0.55f, bPt.y + dirZ * s * 0.3f))
+        drawCircle(Color(0xFF0F172A), radius = (s * 0.42f).coerceIn(2.5f, 8f), center = Offset(bPt.x + dirX * s * 0.55f, bPt.y - dirZ * s * 0.3f))
+
+        // Fairing body (white/navy/amber Yamaha sport-scooter look)
+        drawRoundRect(
+            color = bodyTint,
+            topLeft = Offset(bPt.x - wMoto * 0.48f, bPt.y - hMoto * 0.62f),
+            size = Size(wMoto * 0.96f, hMoto * 0.85f),
+            cornerRadius = CornerRadius(4f, 4f)
+        )
+        drawLine(trimTint, bPt, rPt, strokeWidth = (s * 0.35f).coerceIn(2.5f, 7f), cap = StrokeCap.Round)
+        // Bright Blue-White Dual LED Headlight
+        drawCircle(Color(0xFF60A5FA), radius = (s * 0.28f).coerceIn(2f, 6f), center = Offset(rPt.x + dirX * s * 0.35f, rPt.y - dirZ * s * 0.2f))
+
+        // Draw Rider sitting on motorcycle when mounted
+        if (isMountedByMe) {
+            val uniform = UniformCatalog.byId(uniformId)
+            val weapon = WeaponCatalog.byId(weaponId)
+            val attr = AttributeCatalog.byId(attributeId)
+            val riderHip = Offset(rPt.x, rPt.y - s * 0.15f)
+            drawRoundRect(
+                color = uniform.primaryColor,
+                topLeft = Offset(riderHip.x - s * 0.42f, riderHip.y - s * 0.85f),
+                size = Size(s * 0.84f, s * 0.95f),
+                cornerRadius = CornerRadius(3f, 3f)
+            )
+            val headPt = Offset(riderHip.x, riderHip.y - s * 1.15f)
+            drawCircle(Color(0xFFF1C27D), radius = s * 0.35f, center = headPt)
+            drawArc(
+                color = Color(0xFF0F172A),
+                startAngle = 180f,
+                sweepAngle = 180f,
+                useCenter = true,
+                topLeft = Offset(headPt.x - s * 0.38f, headPt.y - s * 0.38f),
+                size = Size(s * 0.76f, s * 0.55f)
+            )
+            if (attr.style == AttributeStyle.SCANNER_DRONE) {
+                drawCircle(attr.accentColor, radius = s * 0.16f, center = Offset(headPt.x - s * 0.75f, headPt.y - s * 0.3f + sin(animClock * 4f) * 2f))
+            }
+            // Gun visible while riding
+            drawCircle(weapon.accentColor, radius = s * 0.18f, center = Offset(riderHip.x + s * 0.55f, riderHip.y - s * 0.4f))
+        }
     }
-    drawCircle(Color(0xFFFDE047).copy(alpha = 0.7f), radius = (s * 0.22f).coerceIn(1.8f, 5f), center = Offset(bPt.x + wCar * 0.45f, bPt.y))
-    drawCircle(Color(0xFFEF4444).copy(alpha = 0.75f), radius = (s * 0.20f).coerceIn(1.5f, 4.5f), center = Offset(bPt.x - wCar * 0.45f, bPt.y))
+
+    if (!isMountedByMe && depth < 65f) {
+        val tag = textMeasurer.measure(
+            if (vehicle.type == VehicleType.CAR) "MOBIL" else "MOTOR",
+            TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.Bold, fontSize = 8.sp, color = trimTint)
+        )
+        drawText(tag, topLeft = Offset(rPt.x - tag.size.width / 2f, rPt.y - 16f))
+    }
 }
 
 private fun DrawScope.drawGate3D(
@@ -748,28 +894,28 @@ private fun DrawScope.drawGate3D(
         GateStatus.ALERT -> Color(0xFFF59E0B)
         GateStatus.LOCKED -> Color(0xFFEF4444)
     }
-    val leftBase = cam.project(normToWorld(nx - 0.055f, ny, 0f))?.first ?: return
-    val leftTop = cam.project(normToWorld(nx - 0.055f, ny, 4.8f))?.first ?: return
-    val rightBase = cam.project(normToWorld(nx + 0.055f, ny, 0f))?.first ?: return
-    val rightTop = cam.project(normToWorld(nx + 0.055f, ny, 4.8f))?.first ?: return
+    val leftBase = cam.project(normToWorld(nx - 0.04f, ny, 0f))?.first ?: return
+    val leftTop = cam.project(normToWorld(nx - 0.04f, ny, 5.5f))?.first ?: return
+    val rightBase = cam.project(normToWorld(nx + 0.04f, ny, 0f))?.first ?: return
+    val rightTop = cam.project(normToWorld(nx + 0.04f, ny, 5.5f))?.first ?: return
 
     drawLine(Color(0xFF475569), leftBase, leftTop, strokeWidth = 7f, cap = StrokeCap.Round)
     drawLine(Color(0xFF475569), rightBase, rightTop, strokeWidth = 7f, cap = StrokeCap.Round)
     drawLine(gateColor, leftTop, rightTop, strokeWidth = 5f)
 
-    val barPivot = cam.project(normToWorld(nx - 0.05f, ny, 1.5f))?.first
+    val barPivot = cam.project(normToWorld(nx - 0.036f, ny, 1.8f))?.first
     val barTipWorld = if (status == GateStatus.LOCKED) {
-        normToWorld(nx + 0.05f, ny, 1.5f)
+        normToWorld(nx + 0.036f, ny, 1.8f)
     } else {
-        normToWorld(nx - 0.02f, ny, 4.4f)
+        normToWorld(nx - 0.015f, ny, 5.0f)
     }
     val barTip = cam.project(barTipWorld)?.first
     if (barPivot != null && barTip != null) {
         drawLine(gateColor, barPivot, barTip, strokeWidth = 5f, cap = StrokeCap.Round)
     }
 
-    val tag = cam.project(normToWorld(nx, ny, 6.2f))
-    if (tag != null && tag.second < 80f) {
+    val tag = cam.project(normToWorld(nx, ny, 7.2f))
+    if (tag != null && tag.second < 110f) {
         val m = textMeasurer.measure(
             "$label: ${status.labelId}",
             TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.Bold, fontSize = 9.sp, color = gateColor)
@@ -780,26 +926,26 @@ private fun DrawScope.drawGate3D(
 
 private fun DrawScope.drawStreetLamp3D(cam: Camera3D, nx: Float, ny: Float, nvgActive: Boolean) {
     val base = cam.project(normToWorld(nx, ny, 0f)) ?: return
-    val top = cam.project(normToWorld(nx, ny, 5.2f)) ?: return
+    val top = cam.project(normToWorld(nx, ny, 6.4f)) ?: return
     val (bPt, depth) = base
     val tPt = top.first
-    drawLine(Color(0xFF475569), bPt, tPt, strokeWidth = (45f / depth).coerceIn(2f, 6f))
+    drawLine(Color(0xFF475569), bPt, tPt, strokeWidth = (55f / depth).coerceIn(2f, 6f))
     val glow = if (nvgActive) Color(0xFF6EE7B7) else Color(0xFFFDE047)
-    drawCircle(glow.copy(alpha = 0.22f), radius = (190f / depth).coerceIn(8f, 38f), center = bPt)
-    drawCircle(glow, radius = (45f / depth).coerceIn(2.5f, 7f), center = tPt)
+    drawCircle(glow.copy(alpha = 0.22f), radius = (220f / depth).coerceIn(7f, 36f), center = bPt)
+    drawCircle(glow, radius = (55f / depth).coerceIn(2.5f, 7f), center = tPt)
 }
 
 private fun DrawScope.drawTree3D(cam: Camera3D, nx: Float, ny: Float, shX: Float, shY: Float) {
     val base = cam.project(normToWorld(nx, ny, 0f)) ?: return
-    val crown = cam.project(normToWorld(nx, ny, 4.0f)) ?: return
-    val shadowPt = cam.project(normToWorld((nx + shX * 0.45f).coerceIn(0.05f, 0.95f), (ny + shY * 0.45f).coerceIn(0.05f, 0.95f), 0.02f))?.first
+    val crown = cam.project(normToWorld(nx, ny, 4.8f)) ?: return
+    val shadowPt = cam.project(normToWorld((nx + shX * 0.45f).coerceIn(0.03f, 0.97f), (ny + shY * 0.45f).coerceIn(0.03f, 0.97f), 0.02f))?.first
     val (bPt, depth) = base
     val cPt = crown.first
-    val r = (140f / depth).coerceIn(6f, 28f)
+    val r = (180f / depth).coerceIn(5f, 32f)
     if (shadowPt != null) {
         drawOval(Color.Black.copy(alpha = 0.35f), Offset(shadowPt.x - r, shadowPt.y - r * 0.45f), Size(r * 2f, r * 0.9f))
     }
-    drawLine(Color(0xFF78350F), bPt, cPt, strokeWidth = (60f / depth).coerceIn(2.5f, 8f))
+    drawLine(Color(0xFF78350F), bPt, cPt, strokeWidth = (75f / depth).coerceIn(2.5f, 8f))
     drawCircle(Color(0xFF065F46), radius = r, center = cPt)
     drawCircle(Color(0xFF10B981).copy(alpha = 0.72f), radius = r * 0.68f, center = Offset(cPt.x - r * 0.15f, cPt.y - r * 0.2f))
 }
@@ -822,13 +968,13 @@ private fun DrawScope.drawGuard3D(
     textMeasurer: TextMeasurer
 ) {
     val footProj = cam.project(normToWorld(nx, ny, 0f)) ?: return
-    val headProj = cam.project(normToWorld(nx, ny, 3.2f)) ?: return
+    val headProj = cam.project(normToWorld(nx, ny, 3.6f)) ?: return
     val (footPt, depth) = footProj
     val uniform = UniformCatalog.byId(uniformId)
     val weapon = WeaponCatalog.byId(weaponId)
     val attr = AttributeCatalog.byId(attributeId)
 
-    val charH = (footPt.y - headProj.first.y).coerceIn(18f, 160f)
+    val charH = (footPt.y - headProj.first.y).coerceIn(16f, 160f)
     val s = charH / 48f
     val bodyColor = if (isThiefRole) Color(0xFFEF4444) else uniform.primaryColor
     val trimColor = if (pttActive) Color(0xFF22D3EE) else uniform.trimColor
@@ -847,27 +993,24 @@ private fun DrawScope.drawGuard3D(
             size = Size(32f * s, 12f * s),
             style = Stroke(width = 2.4f)
         )
-        // Weapon laser/aim sight line ahead
         val aheadProj = cam.project(
             normToWorld(
-                (nx + sin(Math.toRadians(facingDeg.toDouble()).toFloat()) * weapon.rangeNorm * 0.50f).coerceIn(0.05f, 0.95f),
-                (ny - cos(Math.toRadians(facingDeg.toDouble()).toFloat()) * weapon.rangeNorm * 0.50f).coerceIn(0.05f, 0.95f),
+                (nx + sin(Math.toRadians(facingDeg.toDouble()).toFloat()) * weapon.rangeNorm * 0.32f).coerceIn(0.03f, 0.97f),
+                (ny - cos(Math.toRadians(facingDeg.toDouble()).toFloat()) * weapon.rangeNorm * 0.32f).coerceIn(0.03f, 0.97f),
                 0.08f
             )
         )?.first
         if (aheadProj != null) {
-            drawLine(weapon.accentColor.copy(alpha = 0.24f), footPt, aheadProj, strokeWidth = 6f * s, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor.copy(alpha = 0.24f), footPt, aheadProj, strokeWidth = 5f * s, cap = StrokeCap.Round)
         }
     }
 
-    // Ground shadow
     drawOval(
         color = Color.Black.copy(alpha = 0.48f),
         topLeft = Offset(footPt.x - 12f * s, footPt.y - 4f * s),
         size = Size(24f * s, 8f * s)
     )
 
-    // Animated legs + Speed Boots
     val stride = sin(walkPhase) * 5.5f * s
     val bootColor = if (attr.style == AttributeStyle.SPEED_BOOTS) attr.accentColor else Color(0xFF0F172A)
     drawLine(Color(0xFF1E293B), Offset(footPt.x - 4f * s, footPt.y - 16f * s), Offset(footPt.x - 4f * s, footPt.y + stride * 0.5f), strokeWidth = 5f * s, cap = StrokeCap.Round)
@@ -875,22 +1018,20 @@ private fun DrawScope.drawGuard3D(
     drawCircle(bootColor, radius = 3.2f * s, center = Offset(footPt.x - 4f * s, footPt.y + stride * 0.5f))
     drawCircle(bootColor, radius = 3.2f * s, center = Offset(footPt.x + 4f * s, footPt.y - stride * 0.5f))
 
-    // Cape / Collar for Armor Lv 4-5
     if (uniform.hasCapeOrCollar) {
         drawRoundRect(
             color = bodyColor.copy(alpha = 0.65f),
             topLeft = Offset(footPt.x - 10f * s, footPt.y - 35f * s),
             size = Size(20f * s, 22f * s),
-            cornerRadius = CornerRadiusCompat(4f * s)
+            cornerRadius = CornerRadius(4f * s, 4f * s)
         )
     }
 
-    // Torso (Equipped Armor)
     drawRoundRect(
         color = bodyColor,
         topLeft = Offset(footPt.x - 8.5f * s, footPt.y - 36f * s),
         size = Size(17f * s, 21f * s),
-        cornerRadius = CornerRadiusCompat(4.5f * s)
+        cornerRadius = CornerRadius(4.5f * s, 4.5f * s)
     )
     if (uniform.hasShoulderPads) {
         drawCircle(trimColor, radius = 3.2f * s, center = Offset(footPt.x - 9f * s, footPt.y - 33f * s))
@@ -901,19 +1042,18 @@ private fun DrawScope.drawGuard3D(
             color = attr.primaryColor,
             topLeft = Offset(footPt.x - 7f * s, footPt.y - 34f * s),
             size = Size(14f * s, 14f * s),
-            cornerRadius = CornerRadiusCompat(3f * s)
+            cornerRadius = CornerRadius(3f * s, 3f * s)
         )
         drawRoundRect(
             color = attr.accentColor,
             topLeft = Offset(footPt.x - 7f * s, footPt.y - 34f * s),
             size = Size(14f * s, 14f * s),
-            cornerRadius = CornerRadiusCompat(3f * s),
+            cornerRadius = CornerRadius(3f * s, 3f * s),
             style = Stroke(width = 1.4f * s)
         )
     }
     drawLine(trimColor, Offset(footPt.x, footPt.y - 34f * s), Offset(footPt.x, footPt.y - 17f * s), strokeWidth = 1.8f * s)
 
-    // Head + NVG Goggles
     val headCenter = Offset(footPt.x, footPt.y - 43f * s)
     drawCircle(Color(0xFFF1C27D), radius = 7f * s, center = headCenter)
     drawArc(
@@ -929,7 +1069,6 @@ private fun DrawScope.drawGuard3D(
         drawCircle(attr.accentColor, radius = 2.4f * s, center = Offset(headCenter.x + 2.5f * s + dirX * 2f * s, headCenter.y))
     }
 
-    // Held Weapon in Right Hand (Pistol, Granat, AK-47, Bazoka)
     val handSide = if (dirZ >= 0f) 10f * s else -10f * s
     val handPos = Offset(footPt.x + handSide, footPt.y - 24f * s)
     when (weapon.style) {
@@ -956,19 +1095,18 @@ private fun DrawScope.drawGuard3D(
         }
     }
 
-    // Floating Scanner Drone over shoulder
     if (attr.style == AttributeStyle.SCANNER_DRONE) {
         val dronePt = Offset(footPt.x - 14f * s, footPt.y - 52f * s + sin(animClock * 4f) * 3f * s)
         drawRoundRect(
             color = attr.primaryColor,
             topLeft = Offset(dronePt.x - 5f * s, dronePt.y - 3f * s),
             size = Size(10f * s, 6f * s),
-            cornerRadius = CornerRadiusCompat(3f * s)
+            cornerRadius = CornerRadius(3f * s, 3f * s)
         )
         drawCircle(attr.accentColor, radius = 2.2f * s, center = dronePt)
     }
 
-    if (depth < 80f) {
+    if (depth < 110f) {
         val tag = textMeasurer.measure(
             label,
             TextStyle(
@@ -987,22 +1125,23 @@ private fun DrawScope.drawThief3D(
     nx: Float,
     ny: Float,
     stunned: Boolean,
+    thiefWalkPhase: Float,
     animClock: Float,
     pulseScale: Float,
     nvgActive: Boolean,
     textMeasurer: TextMeasurer
 ) {
     val footProj = cam.project(normToWorld(nx, ny, 0f)) ?: return
-    val headProj = cam.project(normToWorld(nx, ny, 3.1f)) ?: return
+    val headProj = cam.project(normToWorld(nx, ny, 3.5f)) ?: return
     val (footPt, depth) = footProj
-    val charH = (footPt.y - headProj.first.y).coerceIn(16f, 150f)
+    val charH = (footPt.y - headProj.first.y).coerceIn(14f, 150f)
     val s = charH / 46f
 
     val alertColor = if (stunned) Color(0xFF22D3EE) else Color(0xFFEF4444)
     drawCircle(alertColor.copy(alpha = 0.25f), radius = 20f * s * pulseScale, center = footPt)
     drawCircle(alertColor, radius = 14f * s, center = footPt, style = Stroke(width = 2.2f))
 
-    val stride = if (stunned) 0f else sin(animClock * 7f) * 6f * s
+    val stride = if (stunned) 0f else sin(thiefWalkPhase) * 6.5f * s
     drawLine(Color(0xFF111827), Offset(footPt.x - 4f * s, footPt.y - 14f * s), Offset(footPt.x - 4f * s, footPt.y + stride * 0.4f), strokeWidth = 4.8f * s, cap = StrokeCap.Round)
     drawLine(Color(0xFF111827), Offset(footPt.x + 4f * s, footPt.y - 14f * s), Offset(footPt.x + 4f * s, footPt.y - stride * 0.4f), strokeWidth = 4.8f * s, cap = StrokeCap.Round)
 
@@ -1010,14 +1149,14 @@ private fun DrawScope.drawThief3D(
         color = Color(0xFF7F1D1D),
         topLeft = Offset(footPt.x - 8.5f * s, footPt.y - 34f * s),
         size = Size(17f * s, 20f * s),
-        cornerRadius = CornerRadiusCompat(4f * s)
+        cornerRadius = CornerRadius(4f * s, 4f * s)
     )
     if (nvgActive) {
         drawRoundRect(
             color = Color(0xFF34D399),
             topLeft = Offset(footPt.x - 8.5f * s, footPt.y - 34f * s),
             size = Size(17f * s, 20f * s),
-            cornerRadius = CornerRadiusCompat(4f * s),
+            cornerRadius = CornerRadius(4f * s, 4f * s),
             style = Stroke(width = 2f)
         )
     }
@@ -1026,7 +1165,6 @@ private fun DrawScope.drawThief3D(
     drawCircle(Color(0xFF1F2937), radius = 7f * s, center = headPt)
     drawCircle(alertColor, radius = 2.5f * s, center = Offset(headPt.x, headPt.y - 1f * s))
 
-    // Thief weapon in hand
     val tHand = Offset(footPt.x + 10f * s, footPt.y - 23f * s)
     drawLine(Color(0xFF334155), tHand, Offset(tHand.x + 10f * s, tHand.y - 5f * s), strokeWidth = 3f * s, cap = StrokeCap.Round)
 
@@ -1034,7 +1172,7 @@ private fun DrawScope.drawThief3D(
         drawCircle(Color(0xFF38BDF8), radius = 11f * s, center = headPt, style = Stroke(width = 2f))
     }
 
-    if (depth < 85f) {
+    if (depth < 115f) {
         val m = textMeasurer.measure(
             if (stunned) "TERLUKA!" else "PENCURI!",
             TextStyle(
@@ -1047,5 +1185,3 @@ private fun DrawScope.drawThief3D(
         drawText(m, topLeft = Offset(headPt.x - m.size.width / 2f, headPt.y - 24f * s))
     }
 }
-
-private fun CornerRadiusCompat(r: Float) = androidx.compose.ui.geometry.CornerRadius(r, r)

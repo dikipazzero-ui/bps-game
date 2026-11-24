@@ -329,7 +329,7 @@ private fun DrawScope.drawBlocks(w: Float, h: Float, textMeasurer: TextMeasurer)
         color = Color(0xFFE2E8F0)
     )
 
-    EstateWorld.buildings.filter { !it.isMosque }.forEach { b ->
+    EstateWorld.allBuildings.filter { !it.isMosque }.forEach { b ->
         val topLeft = Offset(b.minX * w, b.minY * h)
         val bSize = Size((b.maxX - b.minX) * w, (b.maxY - b.minY) * h)
         drawRoundRect(
@@ -353,6 +353,9 @@ private fun DrawScope.drawBlocks(w: Float, h: Float, textMeasurer: TextMeasurer)
                 topLeft.y + (bSize.height - measured.size.height) / 2f
             )
         )
+    }
+    EstateWorld.defaultVehicles.forEach { v ->
+        drawCircle(v.accentColor.copy(alpha = 0.85f), radius = 5.5f, center = Offset(v.x * w, v.y * h))
     }
 }
 

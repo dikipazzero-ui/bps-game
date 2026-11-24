@@ -48,14 +48,14 @@ fun GameDesignScreen(
     ) {
         LazyColumn(
             modifier = Modifier
-                .widthIn(max = 680.dp)
+                .widthIn(max = 840.dp)
                 .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.90f),
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -161,7 +161,7 @@ private fun GddSectionCard(
     bullets: List<String>
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier.fillMaxWidth()

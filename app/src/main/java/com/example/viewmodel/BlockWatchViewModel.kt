@@ -87,6 +87,7 @@ class BlockWatchViewModel(
     private val _thiefStunnedUntilMs = MutableStateFlow(0L)
     val thiefStunnedUntilMs: StateFlow<Long> = _thiefStunnedUntilMs.asStateFlow()
 
+    private var lastThiefAiSyncMs: Long = 0L
     private var returnToRoomAfterShop: Boolean = false
 
     val profileState: StateFlow<UiState<UserProfile>> = repository.observeUserProfile(currentUserId)
@@ -283,7 +284,8 @@ class BlockWatchViewModel(
                 val bundle = (roomBundleState.value as? UiState.Success)?.data
                 val room = bundle?.room
                 val nowMs = System.currentTimeMillis()
-                if (room != null && room.id == roomId && room.hostUid == currentUserId && nowMs >= _thiefStunnedUntilMs.value) {
+                val recentlySyncedByLocalAi = (nowMs - lastThiefAiSyncMs) < 12000L
+                if (room != null && room.id == roomId && room.hostUid == currentUserId && nowMs >= _thiefStunnedUntilMs.value && !recentlySyncedByLocalAi) {
                     repository.advanceSimulatedThief(roomId, room)
                 }
                 delay(9000L)
@@ -325,16 +327,24 @@ class BlockWatchViewModel(
         _thiefStunnedUntilMs.value = System.currentTimeMillis() + durationMs
     }
 
+    fun syncThiefEscape(sector: EstateSector, nx: Float, ny: Float) {
+        val roomId = _activeRoomId.value ?: return
+        lastThiefAiSyncMs = System.currentTimeMillis()
+        viewModelScope.launch {
+            repository.syncThiefEscape(roomId, sector, nx, ny)
+        }
+    }
+
     fun onMissionVictory(bonusPoints: Long, wave: Int) {
         val roomId = _activeRoomId.value ?: return
         val bundle = (roomBundleState.value as? UiState.Success)?.data ?: return
         val room = bundle.room ?: return
         val profile = (profileState.value as? UiState.Success)?.data ?: return
+        lastThiefAiSyncMs = System.currentTimeMillis()
         viewModelScope.launch {
             repository.apprehendThief(roomId, room, profile, bonusPoints)
-                .onSuccess { pts ->
+                .onSuccess {
                     _thiefStunnedUntilMs.value = 0L
-                    _statusBanner.value = "Misi #$wave Berhasil! +$pts Poin Patroli"
                 }
                 .onFailure {
                     _statusBanner.value = it.localizedMessage ?: "Gagal mencatat kemenangan misi"
@@ -395,9 +405,8 @@ class BlockWatchViewModel(
 
         viewModelScope.launch {
             repository.apprehendThief(roomId, room, profile)
-                .onSuccess { pts ->
+                .onSuccess {
                     _thiefStunnedUntilMs.value = 0L
-                    _statusBanner.value = "Penyusup tertangkap! +$pts Poin Patroli"
                 }
                 .onFailure {
                     _statusBanner.value = it.localizedMessage ?: "Gagal menangkap penyusup"
