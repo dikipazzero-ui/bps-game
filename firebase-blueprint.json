@@ -21,6 +21,10 @@
           "type": "integer",
           "description": "Total number of thieves apprehended."
         },
+        "rankStars": {
+          "type": "integer",
+          "description": "Total ranked stars earned in Rank mode (determines 10-tier account rank level)."
+        },
         "equippedUniformId": {
           "type": "string",
           "description": "Currently equipped uniform identifier."
@@ -97,6 +101,11 @@
           "type": "string",
           "enum": ["ACTIVE", "LOCKDOWN", "ENDED"],
           "description": "Current operational status of the estate."
+        },
+        "matchMode": {
+          "type": "string",
+          "enum": ["CLASSIC", "RANKED"],
+          "description": "Match mode: CLASSIC rewards points only; RANKED rewards +1 star per win."
         },
         "memberUids": {
           "type": "array",

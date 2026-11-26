@@ -111,6 +111,7 @@ fun DrawScope.renderEstate3DScene(
     pings: List<TacticalPing>,
     vehicles: List<WorldVehicle>,
     mountedVehicleId: String?,
+    mountedAltitude: Float = 0f,
     currentUserId: String,
     localPlayerX: Float,
     localPlayerY: Float,
@@ -139,17 +140,51 @@ fun DrawScope.renderEstate3DScene(
     val attr = AttributeCatalog.byId(localAttributeId)
     val nvgActive = attr.style == AttributeStyle.NVG_GOGGLES && isNightMode
     val isInVehicle = mountedVehicleId != null
+    val mountedVehicleObj = vehicles.firstOrNull { it.id == mountedVehicleId }
+    val isFlyingHeli = mountedVehicleObj?.type == VehicleType.HELICOPTER
+    val playerElevation = if (isFlyingHeli) mountedAltitude.coerceAtLeast(0f) else 0f
 
-    val playerWorld = normToWorld(localPlayerX, localPlayerY, 0f)
-    val camDist = if (isInVehicle) 25f else 17.5f
-    val pitchClamped = camPitch.coerceIn(-0.22f, 0.85f)
-    val horizDist = cos(pitchClamped) * camDist
-    val camHeight = (3.9f + sin(pitchClamped) * camDist).coerceAtLeast(1.7f)
+    val playerWorld = normToWorld(localPlayerX, localPlayerY, playerElevation)
+    val baseCamDist = when {
+        isFlyingHeli -> 29.0f + (playerElevation * 0.25f)
+        isInVehicle -> 24.5f
+        else -> 17.0f
+    }
+    val maxPitch = if (isFlyingHeli && playerElevation > 6f) 0.92f else 0.65f
+    val pitchClamped = camPitch.coerceIn(-0.10f, maxPitch)
+
+    // Tarik kamera sedikit lebih dekat bila di belakang karakter menabrak dinding bangunan (kecuali saat terbang tinggi di helikopter)
+    var safeCamDist = baseCamDist
+    val dirBackX = -sin(camYaw)
+    val dirBackZ = cos(camYaw)
+    val desiredCamH = (playerElevation + 4.1f + sin(pitchClamped) * baseCamDist).coerceAtLeast(2.2f)
+    if (desiredCamH < 15.5f && playerElevation < 10f) {
+        val steps = 8
+        for (i in 1..steps) {
+            val testDist = baseCamDist * (i / steps.toFloat())
+            val testHoriz = cos(pitchClamped) * testDist
+            val tx = (playerWorld.x + dirBackX * testHoriz) / WORLD_SPAN + 0.5f
+            val ty = (playerWorld.z + dirBackZ * testHoriz) / WORLD_SPAN + 0.5f
+            val hitsWall = EstateWorld.allBuildings.any { b ->
+                val roofY = b.height3D * 1.15f
+                desiredCamH <= roofY &&
+                    tx in (b.minX - 0.008f)..(b.maxX + 0.008f) &&
+                    ty in (b.minY - 0.008f)..(b.maxY + 0.008f)
+            }
+            if (hitsWall) {
+                safeCamDist = (baseCamDist * ((i - 1) / steps.toFloat())).coerceAtLeast(6.5f)
+                break
+            }
+        }
+    }
+
+    val horizDist = cos(pitchClamped) * safeCamDist
+    val camHeight = (playerElevation + 4.1f + sin(pitchClamped) * safeCamDist).coerceAtLeast(2.2f)
 
     val camPos = Vec3(
-        x = playerWorld.x - sin(camYaw) * horizDist,
+        x = playerWorld.x + dirBackX * horizDist,
         y = camHeight,
-        z = playerWorld.z + cos(camYaw) * horizDist
+        z = playerWorld.z + dirBackZ * horizDist
     )
     val cx = w * 0.50f + camShakeX
     val cy = h * 0.50f + camShakeY
@@ -366,16 +401,18 @@ fun DrawScope.renderEstate3DScene(
         }
     }
 
-    // 3c. Drivable Cars & Motorcycles
+    // 3c. Drivable Cars, Motorcycles & Flying Patrol Helicopters
     vehicles.forEach { veh ->
-        val vw = normToWorld(veh.x, veh.y, 1f)
+        val isMyVehicle = veh.id == mountedVehicleId
+        val vehAlt = if (isMyVehicle && veh.type == VehicleType.HELICOPTER) mountedAltitude else 0f
+        val vw = normToWorld(veh.x, veh.y, 1f + vehAlt)
         val dist = distance3D(cam.pos, vw)
-        if (dist <= cullDist) {
-            val isMyVehicle = veh.id == mountedVehicleId
+        if (dist <= cullDist + 60f) {
             depthObjects.add(DepthObject(dist) {
                 drawVehicle3D(
                     cam = cam,
                     vehicle = veh,
+                    altitude = vehAlt,
                     isMountedByMe = isMyVehicle,
                     uniformId = localUniformId,
                     weaponId = localWeaponId,
@@ -456,7 +493,7 @@ fun DrawScope.renderEstate3DScene(
         val pw = normToWorld(px, py, 2f)
         val pingColor = when (PingType.safeValueOf(ping.pingType)) {
             PingType.SUSPECT -> Color(0xFFEF4444)
-            PingType.BACKUP -> Color(0xFFF59E0B)
+            PingType.BACKUP -> Color(0xFF3B82F6)
             PingType.BLOCK_GATE -> Color(0xFF06B6D4)
             PingType.CLEAR -> Color(0xFF10B981)
         }
@@ -560,7 +597,8 @@ fun DrawScope.renderEstate3DScene(
     // 4. Projectiles
     projectiles.forEach { proj ->
         val p = proj.progress.coerceIn(0f, 1f)
-        val s3 = normToWorld(proj.fromX, proj.fromY, 2.4f)
+        val startAlt = if (!proj.isEnemy && playerElevation > 1f) playerElevation + 1.2f else 2.4f
+        val s3 = normToWorld(proj.fromX, proj.fromY, startAlt)
         val e3 = normToWorld(proj.toX, proj.toY, if (proj.isArc) 0.5f else 2.2f)
         val arcLift = if (proj.isArc) sin(p * PI.toFloat()) * 11f else 0f
         val cur3 = Vec3(
@@ -898,7 +936,7 @@ private fun DrawScope.drawRealisticPrison3D(
         drawSafeWorldText(
             textMeasurer = textMeasurer,
             text = "PENJARA",
-            style = TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = Color(0xFFFDE047)),
+            style = TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = Color(0xFF60A5FA)),
             centerX = labelProj.first.x,
             topY = labelProj.first.y
         )
@@ -1076,6 +1114,7 @@ private fun DrawScope.drawRealisticMosque3D(
 private fun DrawScope.drawVehicle3D(
     cam: Camera3D,
     vehicle: WorldVehicle,
+    altitude: Float,
     isMountedByMe: Boolean,
     uniformId: String,
     weaponId: String,
@@ -1085,17 +1124,114 @@ private fun DrawScope.drawVehicle3D(
     animClock: Float,
     textMeasurer: TextMeasurer
 ) {
-    val base = cam.project(normToWorld(vehicle.x, vehicle.y, 0.25f)) ?: return
-    val roof = cam.project(normToWorld(vehicle.x, vehicle.y, if (vehicle.type == VehicleType.CAR) 2.6f else 2.2f)) ?: return
-    val (bPt, depth) = base
-    val rPt = roof.first
-
     val bodyTint = if (nvgActive) Color(0xFF10B981) else vehicle.bodyColor
     val trimTint = if (nvgActive) Color(0xFF6EE7B7) else vehicle.accentColor
     val relRad = Math.toRadians(vehicle.facingDeg.toDouble()).toFloat() - cam.yaw
     val dirX = sin(relRad)
     val dirZ = cos(relRad)
     val horizontalLook = kotlin.math.abs(dirX) > kotlin.math.abs(dirZ)
+
+    if (vehicle.type == VehicleType.HELICOPTER) {
+        val groundProj = cam.project(normToWorld(vehicle.x, vehicle.y, 0.08f))
+        if (groundProj != null) {
+            val (gPt, gDepth) = groundProj
+            val shadowR = (260f / gDepth).coerceIn(8f, 48f) * (1f - (altitude * 0.012f)).coerceIn(0.45f, 1f)
+            drawOval(
+                Color.Black.copy(alpha = 0.36f),
+                Offset(gPt.x - shadowR, gPt.y - shadowR * 0.45f),
+                Size(shadowR * 2f, shadowR * 0.9f)
+            )
+            if (isMountedByMe && altitude > 2f) {
+                // Sorot lampu pengintai biru helikopter ke bawah untuk mengintai maling dari atas gedung
+                drawCircle(
+                    Color(0xFF38BDF8).copy(alpha = if (isNightMode) 0.26f else 0.14f),
+                    radius = shadowR * 2.2f,
+                    center = gPt
+                )
+                drawCircle(
+                    Color(0xFF60A5FA).copy(alpha = 0.50f),
+                    radius = shadowR * 2.2f,
+                    center = gPt,
+                    style = Stroke(width = 2f)
+                )
+            }
+        }
+
+        val base = cam.project(normToWorld(vehicle.x, vehicle.y, 0.8f + altitude)) ?: return
+        val rotorHub = cam.project(normToWorld(vehicle.x, vehicle.y, 4.4f + altitude)) ?: return
+        val (bPt, depth) = base
+        val rPt = rotorHub.first
+        val s = (210f / depth).coerceIn(7f, 42f)
+        val wHeli = if (horizontalLook) s * 2.6f else s * 1.45f
+        val hHeli = s * 1.25f
+
+        // Landing skids
+        drawLine(Color(0xFF94A3B8), Offset(bPt.x - wHeli * 0.38f, bPt.y + hHeli * 0.45f), Offset(bPt.x + wHeli * 0.38f, bPt.y + hHeli * 0.45f), strokeWidth = (s * 0.14f).coerceIn(2f, 5f), cap = StrokeCap.Round)
+
+        // Tail boom & tail rotor
+        val tailTip = Offset(bPt.x - dirX * wHeli * 0.85f, bPt.y + dirZ * hHeli * 0.65f - s * 0.15f)
+        drawLine(bodyTint, bPt, tailTip, strokeWidth = (s * 0.36f).coerceIn(3f, 10f), cap = StrokeCap.Round)
+        drawLine(trimTint, tailTip, Offset(tailTip.x, tailTip.y - s * 0.65f), strokeWidth = (s * 0.24f).coerceIn(2f, 7f), cap = StrokeCap.Round)
+        val tailSpin = sin(animClock * 30f) * s * 0.45f
+        drawLine(Color(0xFFE2E8F0), Offset(tailTip.x - tailSpin, tailTip.y - s * 0.65f), Offset(tailTip.x + tailSpin, tailTip.y - s * 0.65f), strokeWidth = 2.2f)
+
+        // Main Helicopter Fuselage & Cockpit Canopy
+        drawOval(
+            color = bodyTint,
+            topLeft = Offset(bPt.x - wHeli * 0.48f, bPt.y - hHeli * 0.45f),
+            size = Size(wHeli * 0.96f, hHeli * 0.85f)
+        )
+        drawOval(
+            color = Color(0xFF38BDF8).copy(alpha = 0.78f),
+            topLeft = Offset(bPt.x - wHeli * 0.32f + dirX * s * 0.25f, bPt.y - hHeli * 0.36f - dirZ * s * 0.15f),
+            size = Size(wHeli * 0.56f, hHeli * 0.48f)
+        )
+        // Police Blue Stripe & Blinking Strobe
+        drawLine(trimTint, Offset(bPt.x - wHeli * 0.38f, bPt.y + s * 0.12f), Offset(bPt.x + wHeli * 0.38f, bPt.y + s * 0.12f), strokeWidth = (s * 0.18f).coerceIn(2f, 5f))
+        val strobeColor = if ((animClock * 6f).toInt() % 2 == 0) Color(0xFF38BDF8) else Color(0xFFFFFFFF)
+        drawCircle(strobeColor, radius = (s * 0.22f).coerceIn(2.5f, 6f), center = Offset(bPt.x, bPt.y + hHeli * 0.34f))
+
+        // Rotor mast & spinning 4-blade main rotor
+        drawLine(Color(0xFF475569), bPt, rPt, strokeWidth = (s * 0.20f).coerceIn(2f, 6f))
+        val spinAngle = if (isMountedByMe || altitude > 0.5f) animClock * 24f else 0.4f
+        val bladeLen = s * 2.35f
+        for (blade in 0..1) {
+            val a = spinAngle + blade * (PI.toFloat() * 0.5f)
+            val bx = cos(a) * bladeLen
+            val by = sin(a) * bladeLen * 0.34f
+            drawLine(
+                Color(0xFFCBD5E1).copy(alpha = 0.92f),
+                Offset(rPt.x - bx, rPt.y - by),
+                Offset(rPt.x + bx, rPt.y + by),
+                strokeWidth = (s * 0.16f).coerceIn(2.5f, 5.5f),
+                cap = StrokeCap.Round
+            )
+        }
+        if (isMountedByMe) {
+            drawCircle(
+                Color(0xFF38BDF8).copy(alpha = 0.15f),
+                radius = bladeLen,
+                center = rPt,
+                style = Stroke(width = 1.8f)
+            )
+        }
+
+        if (!isMountedByMe && depth < 90f) {
+            drawSafeWorldText(
+                textMeasurer = textMeasurer,
+                text = "HELIKOPTER",
+                style = TextStyle(fontFamily = JetBrainsMonoFontFamily, fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color(0xFF38BDF8)),
+                centerX = rPt.x,
+                topY = rPt.y - 18f
+            )
+        }
+        return
+    }
+
+    val base = cam.project(normToWorld(vehicle.x, vehicle.y, 0.25f)) ?: return
+    val roof = cam.project(normToWorld(vehicle.x, vehicle.y, if (vehicle.type == VehicleType.CAR) 2.6f else 2.2f)) ?: return
+    val (bPt, depth) = base
+    val rPt = roof.first
 
     if (vehicle.type == VehicleType.CAR) {
         val s = (195f / depth).coerceIn(5f, 36f)
@@ -1123,7 +1259,7 @@ private fun DrawScope.drawVehicle3D(
         drawCircle(sirenColor, radius = (s * 0.30f).coerceIn(2.5f, 8f), center = rPt)
         val headAlpha = if (isNightMode) 0.95f else 0.55f
         val headOffset = Offset(dirX * wCar * 0.45f, -dirZ * hCar * 0.38f)
-        drawCircle(Color(0xFFFDE047).copy(alpha = headAlpha), radius = (s * 0.25f).coerceIn(2f, 6f), center = bPt + headOffset)
+        drawCircle(Color(0xFF93C5FD).copy(alpha = headAlpha), radius = (s * 0.25f).coerceIn(2f, 6f), center = bPt + headOffset)
     } else {
         val s = (170f / depth).coerceIn(4f, 30f)
         val wMoto = if (horizontalLook) s * 1.75f else s * 0.85f
@@ -1191,7 +1327,7 @@ private fun DrawScope.drawGate3D(
 ) {
     val gateColor = when (status) {
         GateStatus.OPEN -> Color(0xFF10B981)
-        GateStatus.ALERT -> Color(0xFFF59E0B)
+        GateStatus.ALERT -> Color(0xFF3B82F6)
         GateStatus.LOCKED -> Color(0xFFEF4444)
     }
     val leftBase = cam.project(normToWorld(nx - 0.04f, ny, 0f))?.first ?: return
@@ -1403,19 +1539,48 @@ private fun DrawScope.drawGuard3D(
         WeaponStyle.PISTOL -> {
             val muzzle = Offset(handPos.x + (dirX * 10f + 5f) * s, handPos.y - 5f * s)
             drawLine(weapon.primaryColor, handPos, muzzle, strokeWidth = 3.2f * s, cap = StrokeCap.Round)
+            drawCircle(weapon.accentColor, radius = 1.6f * s, center = muzzle)
+        }
+        WeaponStyle.SHOTGUN -> {
+            val stock = Offset(handPos.x - (dirX * 5f) * s, handPos.y + 1.5f * s)
+            val muzzle = Offset(handPos.x + (dirX * 14f + 6f) * s, handPos.y - 7.5f * s)
+            drawLine(weapon.primaryColor, stock, muzzle, strokeWidth = 4.6f * s, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + (dirX * 5f + 2f) * s, handPos.y - 2.5f * s), Offset(handPos.x + (dirX * 10f + 4f) * s, handPos.y - 5.5f * s), strokeWidth = 2.6f * s, cap = StrokeCap.Round)
+        }
+        WeaponStyle.SMG -> {
+            val back = Offset(handPos.x - (dirX * 3f) * s, handPos.y - 1f * s)
+            val muzzle = Offset(handPos.x + (dirX * 12f + 5f) * s, handPos.y - 6f * s)
+            drawLine(weapon.primaryColor, back, muzzle, strokeWidth = 4.2f * s, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + (dirX * 4f + 2f) * s, handPos.y - 3f * s), Offset(handPos.x + (dirX * 5f + 2f) * s, handPos.y + 4f * s), strokeWidth = 2.4f * s, cap = StrokeCap.Round)
         }
         WeaponStyle.GRENADE -> {
-            drawCircle(weapon.primaryColor, radius = 4f * s, center = handPos)
+            drawCircle(weapon.primaryColor, radius = 4.2f * s, center = handPos)
+            drawCircle(weapon.accentColor, radius = 4.2f * s, center = handPos, style = Stroke(width = 1.2f * s))
         }
         WeaponStyle.AK47 -> {
             val stock = Offset(handPos.x - (dirX * 6f) * s, handPos.y + 1f * s)
             val muzzle = Offset(handPos.x + (dirX * 15f + 7f) * s, handPos.y - 9f * s)
-            drawLine(weapon.primaryColor, stock, muzzle, strokeWidth = 4f * s, cap = StrokeCap.Round)
+            drawLine(weapon.primaryColor, stock, muzzle, strokeWidth = 4.2f * s, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + (dirX * 4f + 2f) * s, handPos.y - 3f * s), Offset(handPos.x + (dirX * 6f + 3f) * s, handPos.y + 4.5f * s), strokeWidth = 2.4f * s, cap = StrokeCap.Round)
+        }
+        WeaponStyle.SNIPER -> {
+            val stock = Offset(handPos.x - (dirX * 7f) * s, handPos.y + 2f * s)
+            val muzzle = Offset(handPos.x + (dirX * 20f + 9f) * s, handPos.y - 11.5f * s)
+            drawLine(weapon.primaryColor, stock, muzzle, strokeWidth = 3.5f * s, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + (dirX * 3f + 2f) * s, handPos.y - 5.5f * s), Offset(handPos.x + (dirX * 9f + 4f) * s, handPos.y - 8.5f * s), strokeWidth = 2.6f * s, cap = StrokeCap.Round)
         }
         WeaponStyle.BAZOOKA -> {
             val back = Offset(handPos.x - (dirX * 10f) * s, handPos.y + 2f * s)
             val muzzle = Offset(handPos.x + (dirX * 18f + 8f) * s, handPos.y - 12f * s)
-            drawLine(weapon.primaryColor, back, muzzle, strokeWidth = 6.2f * s, cap = StrokeCap.Round)
+            drawLine(weapon.primaryColor, back, muzzle, strokeWidth = 6.5f * s, cap = StrokeCap.Round)
+            drawCircle(weapon.accentColor, radius = 3.5f * s, center = muzzle)
+        }
+        WeaponStyle.MINIGUN -> {
+            val drum = Offset(handPos.x - (dirX * 4f) * s, handPos.y + 2f * s)
+            val muzzle = Offset(handPos.x + (dirX * 17f + 8f) * s, handPos.y - 8f * s)
+            drawCircle(weapon.primaryColor, radius = 5f * s, center = drum)
+            drawLine(Color(0xFF334155), drum, muzzle, strokeWidth = 6.2f * s, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + (dirX * 3f) * s, handPos.y - 1f * s), muzzle, strokeWidth = 2.2f * s, cap = StrokeCap.Round)
         }
     }
 
@@ -1438,7 +1603,7 @@ private fun DrawScope.drawGuard3D(
                 fontFamily = SpaceGroteskFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 10.sp,
-                color = if (isMe) Color(0xFFFDE047) else Color.White
+                color = if (isMe) Color(0xFF60A5FA) else Color.White
             ),
             centerX = headCenter.x,
             topY = headCenter.y - 24f * s
@@ -1494,8 +1659,8 @@ private fun DrawScope.drawThief3D(
 
     if (isJailedWalk) {
         // Raised cuffed hands while escorted to Penjara
-        drawLine(Color(0xFFFBBF24), Offset(footPt.x - 8f * s, footPt.y - 34f * s), Offset(footPt.x - 10f * s, footPt.y - 46f * s), strokeWidth = 3f * s, cap = StrokeCap.Round)
-        drawLine(Color(0xFFFBBF24), Offset(footPt.x + 8f * s, footPt.y - 34f * s), Offset(footPt.x + 10f * s, footPt.y - 46f * s), strokeWidth = 3f * s, cap = StrokeCap.Round)
+        drawLine(Color(0xFF60A5FA), Offset(footPt.x - 8f * s, footPt.y - 34f * s), Offset(footPt.x - 10f * s, footPt.y - 46f * s), strokeWidth = 3f * s, cap = StrokeCap.Round)
+        drawLine(Color(0xFF60A5FA), Offset(footPt.x + 8f * s, footPt.y - 34f * s), Offset(footPt.x + 10f * s, footPt.y - 46f * s), strokeWidth = 3f * s, cap = StrokeCap.Round)
     } else {
         val tHand = Offset(footPt.x + 10f * s, footPt.y - 23f * s)
         drawLine(Color(0xFF334155), tHand, Offset(tHand.x + 10f * s, tHand.y - 5f * s), strokeWidth = 3f * s, cap = StrokeCap.Round)

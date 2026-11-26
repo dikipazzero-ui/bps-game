@@ -3,9 +3,11 @@ package com.example
 import com.example.engine.GandiDispatcher
 import com.example.model.AttributeCatalog
 import com.example.model.EstateWorld
+import com.example.model.GameMatchMode
 import com.example.model.GandiMood
 import com.example.model.GateStatus
 import com.example.model.PingType
+import com.example.model.RankCatalog
 import com.example.model.UniformCatalog
 import com.example.model.WeaponCatalog
 import org.junit.Assert.assertEquals
@@ -74,10 +76,25 @@ class GameLogicTest {
         assertEquals(5, UniformCatalog.items.last().armorLevel)
         assertTrue(UniformCatalog.items.last().damageReduction > UniformCatalog.items.first().damageReduction)
 
-        assertEquals(4, WeaponCatalog.items.size)
-        assertEquals(listOf("pistol_9mm", "granat_frag", "ak47_assault", "bazoka_rpg"), WeaponCatalog.items.map { it.id })
+        assertEquals(8, WeaponCatalog.items.size)
+        assertEquals(
+            listOf(
+                "pistol_9mm",
+                "shotgun_tactical",
+                "smg_mp5",
+                "granat_frag",
+                "ak47_assault",
+                "sniper_awp",
+                "bazoka_rpg",
+                "minigun_vulcan"
+            ),
+            WeaponCatalog.items.map { it.id }
+        )
         assertEquals(0L, WeaponCatalog.items.first().price)
+        val prices = WeaponCatalog.items.map { it.price }
+        assertTrue("Weapon prices must be strictly increasing", prices.zipWithNext().all { (a, b) -> b > a })
         assertTrue(WeaponCatalog.byId("bazoka_rpg").damage > WeaponCatalog.byId("pistol_9mm").damage)
+        assertTrue(WeaponCatalog.byId("minigun_vulcan").price > WeaponCatalog.byId("bazoka_rpg").price)
         // Legacy weapon aliasing
         assertEquals("pistol_9mm", WeaponCatalog.byId("baton_standard").id)
 
@@ -106,9 +123,10 @@ class GameLogicTest {
     }
 
     @Test
-    fun `estate has drivable cars and motorcycles and building line of sight occlusion`() {
+    fun `estate has drivable cars motorcycles and flyable helicopters with building line of sight occlusion`() {
         assertTrue(EstateWorld.defaultVehicles.any { it.type == com.example.model.VehicleType.CAR })
         assertTrue(EstateWorld.defaultVehicles.any { it.type == com.example.model.VehicleType.MOTORCYCLE })
+        assertTrue(EstateWorld.defaultVehicles.any { it.type == com.example.model.VehicleType.HELICOPTER })
         EstateWorld.defaultVehicles.forEach { v ->
             assertTrue("Vehicle ${v.id} must spawn on walkable ground", EstateWorld.isWalkable(v.x, v.y))
         }
@@ -162,5 +180,36 @@ class GameLogicTest {
                 assertTrue(proj.second >= 1.5f)
             }
         }
+    }
+
+    @Test
+    fun `rank catalog has 10 ascending tiers and match modes parse safely`() {
+        assertEquals(10, RankCatalog.tiers.size)
+        assertEquals((1..10).toList(), RankCatalog.tiers.map { it.level })
+
+        val thresholds = RankCatalog.tiers.map { it.minStars }
+        assertTrue("Rank star thresholds must be strictly increasing", thresholds.zipWithNext().all { (a, b) -> b > a })
+        assertEquals(0, RankCatalog.tiers.first().minStars)
+        assertEquals(null, RankCatalog.tiers.last().nextLevelStars)
+
+        // Verify tier lookup across boundaries
+        assertEquals(1, RankCatalog.tierForStars(-3L).level)
+        assertEquals(1, RankCatalog.tierForStars(0L).level)
+        assertEquals(2, RankCatalog.tierForStars(2L).level)
+        assertEquals(5, RankCatalog.tierForStars(10L).level)
+        assertEquals(9, RankCatalog.tierForStars(34L).level)
+        assertEquals(10, RankCatalog.tierForStars(35L).level)
+        assertEquals(10, RankCatalog.tierForStars(999L).level)
+
+        // Progress bounds
+        assertEquals(0f, RankCatalog.progressInTier(0L), 0.001f)
+        assertEquals(0.5f, RankCatalog.progressInTier(1L), 0.001f)
+        assertEquals(1f, RankCatalog.progressInTier(35L), 0.001f)
+        assertEquals(1f, RankCatalog.progressInTier(120L), 0.001f)
+
+        // Match mode fallback
+        assertEquals(GameMatchMode.CLASSIC, GameMatchMode.safeValueOf("CLASSIC"))
+        assertEquals(GameMatchMode.RANKED, GameMatchMode.safeValueOf("RANKED"))
+        assertEquals(GameMatchMode.RANKED, GameMatchMode.safeValueOf("UNKNOWN"))
     }
 }

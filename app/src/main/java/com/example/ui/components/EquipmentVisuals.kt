@@ -320,53 +320,60 @@ private fun DrawScope.drawHeldWeaponPreview(
     when (weapon.style) {
         WeaponStyle.PISTOL -> {
             val barrelTip = Offset(handPos.x + 20f * dir * scale, handPos.y - 9f * scale)
-            drawLine(
-                weapon.primaryColor,
-                Offset(handPos.x - 2f * dir * scale, handPos.y - 9f * scale),
-                barrelTip,
-                strokeWidth = 6f * scale,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                Color(0xFF0F172A),
-                handPos,
-                Offset(handPos.x + 2f * dir * scale, handPos.y - 8f * scale),
-                strokeWidth = 5f * scale,
-                cap = StrokeCap.Round
-            )
+            drawLine(weapon.primaryColor, Offset(handPos.x - 2f * dir * scale, handPos.y - 9f * scale), barrelTip, strokeWidth = 6f * scale, cap = StrokeCap.Round)
+            drawLine(Color(0xFF0F172A), handPos, Offset(handPos.x + 2f * dir * scale, handPos.y - 8f * scale), strokeWidth = 5f * scale, cap = StrokeCap.Round)
             drawCircle(weapon.accentColor, radius = 2.6f * scale, center = barrelTip)
+        }
+        WeaponStyle.SHOTGUN -> {
+            val stock = Offset(handPos.x - 14f * dir * scale, handPos.y - 4f * scale)
+            val muzzle = Offset(handPos.x + 30f * dir * scale, handPos.y - 13f * scale)
+            drawLine(weapon.primaryColor, stock, muzzle, strokeWidth = 7.5f * scale, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + 6f * dir * scale, handPos.y - 7f * scale), Offset(handPos.x + 22f * dir * scale, handPos.y - 10f * scale), strokeWidth = 4.5f * scale, cap = StrokeCap.Round)
+        }
+        WeaponStyle.SMG -> {
+            val back = Offset(handPos.x - 10f * dir * scale, handPos.y - 7f * scale)
+            val muzzle = Offset(handPos.x + 24f * dir * scale, handPos.y - 11f * scale)
+            drawLine(weapon.primaryColor, back, muzzle, strokeWidth = 7f * scale, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + 6f * dir * scale, handPos.y - 7f * scale), Offset(handPos.x + 9f * dir * scale, handPos.y + 7f * scale), strokeWidth = 4f * scale, cap = StrokeCap.Round)
         }
         WeaponStyle.GRENADE -> {
             val bodyCenter = Offset(handPos.x + 3f * dir * scale, handPos.y - 5f * scale)
             drawCircle(weapon.primaryColor, radius = 8.5f * scale, center = bodyCenter)
             drawCircle(weapon.accentColor, radius = 8.5f * scale, center = bodyCenter, style = Stroke(width = 1.8f * scale))
-            drawLine(
-                Color(0xFFCBD5E1),
-                Offset(bodyCenter.x, bodyCenter.y - 8f * scale),
-                Offset(bodyCenter.x + 5f * dir * scale, bodyCenter.y - 12f * scale),
-                strokeWidth = 2.5f * scale
-            )
+            drawLine(Color(0xFFCBD5E1), Offset(bodyCenter.x, bodyCenter.y - 8f * scale), Offset(bodyCenter.x + 5f * dir * scale, bodyCenter.y - 12f * scale), strokeWidth = 2.5f * scale)
         }
         WeaponStyle.AK47 -> {
             val stock = Offset(handPos.x - 16f * dir * scale, handPos.y - 4f * scale)
             val muzzle = Offset(handPos.x + 34f * dir * scale, handPos.y - 14f * scale)
-            // Wooden stock & handguard
             drawLine(weapon.primaryColor, stock, Offset(handPos.x + 10f * dir * scale, handPos.y - 9f * scale), strokeWidth = 6.5f * scale, cap = StrokeCap.Round)
-            // Metal receiver & long barrel
             drawLine(Color(0xFF334155), Offset(handPos.x - 4f * dir * scale, handPos.y - 7f * scale), muzzle, strokeWidth = 5f * scale, cap = StrokeCap.Round)
-            // Curved banana magazine
             val magTop = Offset(handPos.x + 8f * dir * scale, handPos.y - 5f * scale)
             val magBot = Offset(handPos.x + 14f * dir * scale, handPos.y + 8f * scale)
             drawLine(weapon.accentColor, magTop, magBot, strokeWidth = 4.5f * scale, cap = StrokeCap.Round)
+        }
+        WeaponStyle.SNIPER -> {
+            val stock = Offset(handPos.x - 18f * dir * scale, handPos.y - 3f * scale)
+            val muzzle = Offset(handPos.x + 42f * dir * scale, handPos.y - 16f * scale)
+            drawLine(weapon.primaryColor, stock, Offset(handPos.x + 12f * dir * scale, handPos.y - 9f * scale), strokeWidth = 6.5f * scale, cap = StrokeCap.Round)
+            drawLine(Color(0xFF1E293B), Offset(handPos.x - 2f * dir * scale, handPos.y - 7f * scale), muzzle, strokeWidth = 3.8f * scale, cap = StrokeCap.Round)
+            // Scope on top
+            drawLine(weapon.accentColor, Offset(handPos.x + 2f * dir * scale, handPos.y - 13f * scale), Offset(handPos.x + 18f * dir * scale, handPos.y - 16f * scale), strokeWidth = 4f * scale, cap = StrokeCap.Round)
         }
         WeaponStyle.BAZOOKA -> {
             val backEnd = Offset(handPos.x - 24f * dir * scale, handPos.y - 10f * scale)
             val frontEnd = Offset(handPos.x + 36f * dir * scale, handPos.y - 18f * scale)
             drawLine(weapon.primaryColor, backEnd, frontEnd, strokeWidth = 11.5f * scale, cap = StrokeCap.Round)
             drawLine(weapon.accentColor, Offset(handPos.x + 18f * dir * scale, handPos.y - 15.5f * scale), frontEnd, strokeWidth = 12f * scale)
-            // Warhead nose cone sticking out
             val nose = Offset(frontEnd.x + 8f * dir * scale, frontEnd.y - 1.5f * scale)
-            drawLine(Color(0xFFFDE047), frontEnd, nose, strokeWidth = 7f * scale, cap = StrokeCap.Round)
+            drawLine(Color(0xFF38BDF8), frontEnd, nose, strokeWidth = 7f * scale, cap = StrokeCap.Round)
+        }
+        WeaponStyle.MINIGUN -> {
+            val drum = Offset(handPos.x - 10f * dir * scale, handPos.y - 2f * scale)
+            val barrelTip = Offset(handPos.x + 36f * dir * scale, handPos.y - 11f * scale)
+            drawCircle(weapon.primaryColor, radius = 9.5f * scale, center = drum)
+            drawLine(Color(0xFF334155), drum, barrelTip, strokeWidth = 11f * scale, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + 2f * dir * scale, handPos.y - 5f * scale), barrelTip, strokeWidth = 3.2f * scale, cap = StrokeCap.Round)
+            drawLine(weapon.accentColor, Offset(handPos.x + 2f * dir * scale, handPos.y - 1f * scale), Offset(barrelTip.x, barrelTip.y + 4f * scale), strokeWidth = 3.2f * scale, cap = StrokeCap.Round)
         }
     }
 }
@@ -423,6 +430,15 @@ fun WeaponVisualBadge(weapon: WeaponItem, modifier: Modifier = Modifier) {
                 drawLine(Color(0xFF334155), Offset(w * 0.30f, h * 0.42f), Offset(w * 0.24f, h * 0.74f), 9f, cap = StrokeCap.Round)
                 drawCircle(weapon.accentColor, radius = 4.5f, center = Offset(w * 0.80f, h * 0.42f))
             }
+            WeaponStyle.SHOTGUN -> {
+                drawLine(weapon.primaryColor, Offset(w * 0.14f, h * 0.62f), Offset(w * 0.84f, h * 0.32f), 11f, cap = StrokeCap.Round)
+                drawLine(weapon.accentColor, Offset(w * 0.45f, h * 0.54f), Offset(w * 0.70f, h * 0.43f), 7f, cap = StrokeCap.Round)
+            }
+            WeaponStyle.SMG -> {
+                drawLine(weapon.primaryColor, Offset(w * 0.20f, h * 0.46f), Offset(w * 0.78f, h * 0.46f), 11f, cap = StrokeCap.Round)
+                drawLine(weapon.accentColor, Offset(w * 0.50f, h * 0.48f), Offset(w * 0.56f, h * 0.76f), 6.5f, cap = StrokeCap.Round)
+                drawLine(Color(0xFF334155), Offset(w * 0.30f, h * 0.48f), Offset(w * 0.26f, h * 0.72f), 7f, cap = StrokeCap.Round)
+            }
             WeaponStyle.GRENADE -> {
                 drawCircle(weapon.primaryColor, radius = w * 0.23f, center = Offset(w * 0.50f, h * 0.56f))
                 drawCircle(weapon.accentColor, radius = w * 0.23f, center = Offset(w * 0.50f, h * 0.56f), style = Stroke(width = 3f))
@@ -434,10 +450,21 @@ fun WeaponVisualBadge(weapon: WeaponItem, modifier: Modifier = Modifier) {
                 drawLine(Color(0xFF475569), Offset(w * 0.32f, h * 0.55f), Offset(w * 0.86f, h * 0.30f), 7.5f, cap = StrokeCap.Round)
                 drawLine(weapon.accentColor, Offset(w * 0.52f, h * 0.48f), Offset(w * 0.60f, h * 0.74f), 6f, cap = StrokeCap.Round)
             }
+            WeaponStyle.SNIPER -> {
+                drawLine(weapon.primaryColor, Offset(w * 0.12f, h * 0.66f), Offset(w * 0.52f, h * 0.48f), 9f, cap = StrokeCap.Round)
+                drawLine(Color(0xFF1E293B), Offset(w * 0.35f, h * 0.55f), Offset(w * 0.90f, h * 0.28f), 5.5f, cap = StrokeCap.Round)
+                drawLine(weapon.accentColor, Offset(w * 0.40f, h * 0.40f), Offset(w * 0.66f, h * 0.28f), 6f, cap = StrokeCap.Round)
+            }
             WeaponStyle.BAZOOKA -> {
                 drawLine(weapon.primaryColor, Offset(w * 0.14f, h * 0.64f), Offset(w * 0.80f, h * 0.32f), 16f, cap = StrokeCap.Round)
                 drawLine(weapon.accentColor, Offset(w * 0.64f, h * 0.40f), Offset(w * 0.82f, h * 0.31f), 16f)
-                drawCircle(Color(0xFFFDE047), radius = 7f, center = Offset(w * 0.86f, h * 0.29f))
+                drawCircle(Color(0xFF38BDF8), radius = 7f, center = Offset(w * 0.86f, h * 0.29f))
+            }
+            WeaponStyle.MINIGUN -> {
+                drawCircle(weapon.primaryColor, radius = w * 0.16f, center = Offset(w * 0.28f, h * 0.58f))
+                drawLine(Color(0xFF334155), Offset(w * 0.30f, h * 0.56f), Offset(w * 0.86f, h * 0.34f), 14f, cap = StrokeCap.Round)
+                drawLine(weapon.accentColor, Offset(w * 0.42f, h * 0.49f), Offset(w * 0.86f, h * 0.32f), 4f, cap = StrokeCap.Round)
+                drawLine(weapon.accentColor, Offset(w * 0.45f, h * 0.55f), Offset(w * 0.88f, h * 0.38f), 4f, cap = StrokeCap.Round)
             }
         }
     }

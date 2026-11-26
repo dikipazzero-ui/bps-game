@@ -124,8 +124,11 @@ fun PatrolHudScreen(
     onSetPtt: (Boolean, Boolean) -> Unit,
     onToggleVoice: (Boolean) -> Unit,
     onMissionVictory: (Long, Int) -> Unit,
+    onWaveMatchWon: (Long, Int) -> Unit = { _, _ -> },
     onSwitchWeapon: (String) -> Unit,
-    onOpenShop: () -> Unit
+    onOpenShop: () -> Unit,
+    bgmMuted: Boolean = false,
+    onToggleBgm: () -> Unit = {}
 ) {
     var showSquadDrawer by remember { mutableStateOf(false) }
 
@@ -212,10 +215,13 @@ fun PatrolHudScreen(
                         onWeaponHitThief = onWeaponHitThief,
                         onApprehend = onApprehend,
                         onMissionVictory = onMissionVictory,
+                        onWaveMatchWon = onWaveMatchWon,
                         onSwitchWeapon = onSwitchWeapon,
                         onOpenShop = onOpenShop,
                         onToggleDrawer = { showSquadDrawer = !showSquadDrawer },
                         onExitRoom = onExitRoom,
+                        bgmMuted = bgmMuted,
+                        onToggleBgm = onToggleBgm,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -267,15 +273,15 @@ fun PatrolHudScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 8.dp)
                 ) {
-                    val useWidePadding = maxWidth >= 460.dp
+                    val useWidePadding = maxWidth >= 480.dp
                     GandiTransparentMarquee(
                         room = room,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(
-                                start = if (useWidePadding) 122.dp else 16.dp,
+                                start = if (useWidePadding) 154.dp else 16.dp,
                                 end = if (useWidePadding) 164.dp else 16.dp
                             )
                     )
@@ -374,7 +380,7 @@ private fun GandiTransparentMarquee(
     val accentColor by animateColorAsState(
         targetValue = when (mood) {
             GandiMood.PANICKED -> Color(0xFFFCA5A5)
-            GandiMood.ALERT -> Color(0xFFFDE047)
+            GandiMood.ALERT -> Color(0xFF7DD3FC)
             GandiMood.PROUD -> Color(0xFF6EE7B7)
             GandiMood.SUSPICIOUS -> Color(0xFFD8B4FE)
             GandiMood.CHATTY -> Color(0xFF67E8F9)

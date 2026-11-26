@@ -26,11 +26,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AddModerator
 import androidx.compose.material.icons.filled.Checkroom
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stars
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -39,6 +43,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -61,20 +66,27 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.model.AttributeCatalog
+import com.example.model.GameMatchMode
 import com.example.model.PatrolRoom
+import com.example.model.RankCatalog
 import com.example.model.UniformCatalog
 import com.example.model.UserProfile
 import com.example.model.WeaponCatalog
+import com.example.ui.components.RankAvatarFrame
+import com.example.ui.components.RankRoadmapDialog
 import com.example.viewmodel.UiState
 
 @Composable
 fun LobbyScreen(
     profileState: UiState<UserProfile>,
     roomsState: UiState<List<PatrolRoom>>,
+    selectedMatchMode: GameMatchMode,
     isBusy: Boolean,
-    onStartShift: (String) -> Unit,
+    onSelectMatchMode: (GameMatchMode) -> Unit,
+    onStartShift: (String, GameMatchMode) -> Unit,
     onJoinByCode: (String) -> Unit,
     onEnterRoom: (PatrolRoom) -> Unit,
     onOpenShop: () -> Unit,
@@ -84,6 +96,7 @@ fun LobbyScreen(
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var showJoinDialog by remember { mutableStateOf(false) }
+    var showRankRoadmap by remember { mutableStateOf(false) }
     var shiftTitle by remember { mutableStateOf("Patroli Bumi Papan Selaras") }
     var joinCode by remember { mutableStateOf("") }
 
@@ -129,17 +142,19 @@ fun LobbyScreen(
                         val uniform = UniformCatalog.byId(profile.equippedUniformId)
                         val weapon = WeaponCatalog.byId(profile.equippedWeaponId)
                         val attribute = AttributeCatalog.byId(profile.equippedAttributeId)
+                        val rankTier = RankCatalog.tierForStars(profile.rankStars)
+                        val rankProgress = RankCatalog.progressInTier(profile.rankStars)
                         Card(
                             shape = RoundedCornerShape(22.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            border = BorderStroke(1.2.dp, rankTier.frameSecondary.copy(alpha = 0.72f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(132.dp)
+                                        .height(142.dp)
                                 ) {
                                     Image(
                                         painter = painterResource(id = R.drawable.img_estate_banner),
@@ -156,18 +171,49 @@ fun LobbyScreen(
                                                 )
                                             )
                                     )
-                                    IconButton(
-                                        onClick = onSignOut,
+                                    Row(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(8.dp)
-                                            .testTag("sign_out_button")
+                                            .padding(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.Logout,
-                                            contentDescription = stringResource(R.string.sign_out),
-                                            tint = Color.White
-                                        )
+                                        Surface(
+                                            onClick = { showRankRoadmap = true },
+                                            color = Color(0xD8172554),
+                                            shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(1.dp, rankTier.frameSecondary),
+                                            modifier = Modifier.testTag("open_rank_roadmap_btn")
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.WorkspacePremium,
+                                                    contentDescription = "Lihat 10 Tingkat Rank",
+                                                    tint = rankTier.frameSecondary,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                                Text(
+                                                    text = "Lv.${rankTier.level} • ${profile.rankStars}★",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                            }
+                                        }
+                                        IconButton(
+                                            onClick = onSignOut,
+                                            modifier = Modifier.testTag("sign_out_button")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.Logout,
+                                                contentDescription = stringResource(R.string.sign_out),
+                                                tint = Color.White
+                                            )
+                                        }
                                     }
                                     Row(
                                         modifier = Modifier
@@ -175,38 +221,66 @@ fun LobbyScreen(
                                             .padding(14.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(CircleShape)
-                                                .background(uniform.primaryColor)
-                                                .border(2.5.dp, uniform.trimColor, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Shield,
-                                                contentDescription = uniform.name,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        }
+                                        RankAvatarFrame(
+                                            tier = rankTier,
+                                            avatarBgColor = uniform.primaryColor,
+                                            size = 72.dp,
+                                            showLevelBadge = true,
+                                            onClick = { showRankRoadmap = true },
+                                            modifier = Modifier.testTag("profile_rank_frame")
+                                        )
                                         Spacer(Modifier.width(12.dp))
-                                        Column {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = profile.displayName,
+                                                    style = MaterialTheme.typography.titleLarge,
+                                                    color = Color.White
+                                                )
+                                                Surface(
+                                                    color = rankTier.framePrimary,
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    border = BorderStroke(1.dp, rankTier.frameSecondary)
+                                                ) {
+                                                    Text(
+                                                        text = rankTier.title.uppercase(),
+                                                        color = Color.White,
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
                                             Text(
-                                                text = profile.displayName,
-                                                style = MaterialTheme.typography.titleLarge,
-                                                color = Color.White
-                                            )
-                                            Text(
-                                                text = "${uniform.rankTitle} • ${uniform.name}",
+                                                text = "${uniform.rankTitle} • ${weapon.name}",
                                                 style = MaterialTheme.typography.labelMedium,
-                                                color = uniform.trimColor
+                                                color = rankTier.frameSecondary
                                             )
-                                            Text(
-                                                text = "Senjata: ${weapon.name} • ${attribute.name}",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = Color(0xFF94A3B8)
-                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                LinearProgressIndicator(
+                                                    progress = { rankProgress },
+                                                    color = Color(0xFF60A5FA),
+                                                    trackColor = Color(0xFF1E293B),
+                                                    modifier = Modifier
+                                                        .width(120.dp)
+                                                        .height(6.dp)
+                                                        .clip(RoundedCornerShape(3.dp))
+                                                )
+                                                Text(
+                                                    text = rankTier.nextLevelStars?.let { "${profile.rankStars}/$it ★" } ?: "${profile.rankStars}★ MAX",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color(0xFF93C5FD),
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 10.sp
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -233,34 +307,60 @@ fun LobbyScreen(
                                         )
                                         Spacer(Modifier.width(14.dp))
                                         Text(
-                                            text = "${profile.apprehensions} Tangkapan",
+                                            text = "${profile.apprehensions} Tangkapan • ${attribute.name}",
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier
-                                            .clickable(onClick = onOpenShop)
-                                            .testTag("quick_shop_chip")
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Surface(
+                                            color = Color(0xFF172554),
+                                            shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(1.dp, rankTier.frameSecondary),
+                                            modifier = Modifier.clickable { showRankRoadmap = true }
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Checkroom,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(Modifier.width(4.dp))
-                                            Text(
-                                                text = "Gudang",
-                                                style = MaterialTheme.typography.labelLarge,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                                            )
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Star,
+                                                    contentDescription = null,
+                                                    tint = rankTier.frameSecondary,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Bingkai",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = Color.White
+                                                )
+                                            }
+                                        }
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier
+                                                .clickable(onClick = onOpenShop)
+                                                .testTag("quick_shop_chip")
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Checkroom,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Gudang",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -309,52 +409,136 @@ fun LobbyScreen(
                 }
             }
 
-            // 3. Primary Multiplayer Actions
+            // 3. Mode Selector (RANK vs CLASSIC ala Mobile Legends) & Primary Actions
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Button(
-                        onClick = { showCreateDialog = true },
-                        enabled = !isBusy && profileState is UiState.Success,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp)
-                            .testTag("start_patrol_button")
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Filled.AddModerator, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.btn_start_shift), fontWeight = FontWeight.Bold)
+                        GameMatchMode.entries.forEach { mode ->
+                            val isSelected = selectedMatchMode == mode
+                            val isRanked = mode == GameMatchMode.RANKED
+                            Surface(
+                                onClick = { onSelectMatchMode(mode) },
+                                color = if (isSelected) {
+                                    if (isRanked) Color(0xE6172554) else Color(0xE60E293B)
+                                } else {
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) {
+                                        if (isRanked) Color(0xFF60A5FA) else Color(0xFF38BDF8)
+                                    } else {
+                                        MaterialTheme.colorScheme.outline
+                                    }
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("mode_card_${mode.name}")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Surface(
+                                        color = if (isRanked) Color(0xFF2563EB) else Color(0xFF0284C7),
+                                        shape = CircleShape,
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = if (isRanked) Icons.Filled.EmojiEvents else Icons.Filled.SportsEsports,
+                                                contentDescription = mode.labelId,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = "MODE ${mode.labelId}",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = Color.White,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                            Surface(
+                                                color = if (isRanked) Color(0xFF1D4ED8) else Color(0xFF0369A1),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isRanked) "+1 ★" else "POIN",
+                                                    color = Color.White,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = mode.subtitle,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFFCBD5E1),
+                                            maxLines = 2
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    OutlinedButton(
-                        onClick = { showJoinDialog = true },
-                        enabled = !isBusy && profileState is UiState.Success,
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary),
-                        modifier = Modifier
-                            .weight(0.9f)
-                            .height(54.dp)
-                            .testTag("join_code_button")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            Icons.Filled.GroupAdd,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            stringResource(R.string.btn_join_squad),
-                            color = MaterialTheme.colorScheme.secondary,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Button(
+                            onClick = { showCreateDialog = true },
+                            enabled = !isBusy && profileState is UiState.Success,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                                .testTag("start_patrol_button")
+                        ) {
+                            Icon(Icons.Filled.AddModerator, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Mulai Patroli (${selectedMatchMode.labelId})", fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { showJoinDialog = true },
+                            enabled = !isBusy && profileState is UiState.Success,
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary),
+                            modifier = Modifier
+                                .weight(0.85f)
+                                .height(54.dp)
+                                .testTag("join_code_button")
+                        ) {
+                            Icon(
+                                Icons.Filled.GroupAdd,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                stringResource(R.string.btn_join_squad),
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -466,6 +650,7 @@ fun LobbyScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
+                                            val roomMode = GameMatchMode.safeValueOf(room.matchMode)
                                             Surface(
                                                 color = MaterialTheme.colorScheme.secondaryContainer,
                                                 shape = RoundedCornerShape(6.dp)
@@ -475,6 +660,20 @@ fun LobbyScreen(
                                                     style = MaterialTheme.typography.labelMedium,
                                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                )
+                                            }
+                                            Spacer(Modifier.width(6.dp))
+                                            Surface(
+                                                color = if (roomMode == GameMatchMode.RANKED) Color(0xFF1D4ED8) else Color(0xFF0369A1),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = roomMode.badgeLabel,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color.White,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                 )
                                             }
                                             Spacer(Modifier.width(8.dp))
@@ -518,13 +717,39 @@ fun LobbyScreen(
         }
     }
 
+    if (showRankRoadmap && profileState is UiState.Success) {
+        RankRoadmapDialog(
+            currentStars = profileState.data.rankStars,
+            onDismiss = { showRankRoadmap = false }
+        )
+    }
+
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("Buka Shift Patroli Baru") },
+            title = { Text("Buka Shift Patroli (${selectedMatchMode.labelId})") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Beri nama shift patroli Anda. Teman bisa bergabung memakai Kode Ruang yang dibuat.")
+                    Text(selectedMatchMode.subtitle)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GameMatchMode.entries.forEach { mode ->
+                            val active = selectedMatchMode == mode
+                            Surface(
+                                onClick = { onSelectMatchMode(mode) },
+                                color = if (active) Color(0xFF2563EB) else Color(0xFF1E293B),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = mode.badgeLabel,
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
                     OutlinedTextField(
                         value = shiftTitle,
                         onValueChange = { if (it.length <= 45) shiftTitle = it },
@@ -540,7 +765,7 @@ fun LobbyScreen(
                 Button(
                     onClick = {
                         showCreateDialog = false
-                        onStartShift(shiftTitle)
+                        onStartShift(shiftTitle, selectedMatchMode)
                     },
                     modifier = Modifier.testTag("confirm_create_room")
                 ) {

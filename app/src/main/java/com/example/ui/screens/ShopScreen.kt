@@ -53,12 +53,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.model.AttributeCatalog
+import com.example.model.RankCatalog
 import com.example.model.ShopCategory
 import com.example.model.UniformCatalog
 import com.example.model.UserProfile
 import com.example.model.WeaponCatalog
 import com.example.ui.components.AttributeVisualBadge
 import com.example.ui.components.Character3DPreviewStage
+import com.example.ui.components.RankAvatarFrame
 import com.example.ui.components.UniformVisualBadge
 import com.example.ui.components.WeaponVisualBadge
 import com.example.viewmodel.UiState
@@ -118,18 +120,30 @@ fun ShopScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(
-                                    text = "GUDANG PERLENGKAPAN 3D",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Bold
+                            val rankTier = RankCatalog.tierForStars(profile?.rankStars ?: 0L)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                RankAvatarFrame(
+                                    tier = rankTier,
+                                    avatarBgColor = previewUniform.primaryColor,
+                                    size = 50.dp,
+                                    showLevelBadge = true
                                 )
-                                Text(
-                                    text = "Geser model 3D untuk memutar • Ketuk item untuk coba visual",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Column {
+                                    Text(
+                                        text = "GUDANG PERLENGKAPAN 3D",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Lv.${rankTier.level} ${rankTier.title} (${profile?.rankStars ?: 0L}★) • Geser model 3D untuk memutar",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                             Surface(
                                 color = MaterialTheme.colorScheme.primary,
@@ -211,9 +225,9 @@ fun ShopScreen(
                                 )
                                 NeedStatRow(
                                     label = "Daya Serang Senjata",
-                                    progress = (previewWeapon.damage / 95f).coerceIn(0.22f, 1f),
+                                    progress = (previewWeapon.damage / 155f).coerceIn(0.15f, 1f),
                                     valueText = "${previewWeapon.damage} DMG",
-                                    color = Color(0xFFF59E0B)
+                                    color = Color(0xFF3B82F6)
                                 )
                                 NeedStatRow(
                                     label = "Kecepatan Lari",

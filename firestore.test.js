@@ -23,6 +23,7 @@ function validUserPayload(uid, now) {
     displayName: "Sgt. Alice",
     points: 250,
     apprehensions: 2,
+    rankStars: 3,
     equippedUniformId: "rookie_cadet",
     unlockedUniformIds: ["rookie_cadet"],
     equippedWeaponId: "baton_standard",
@@ -41,6 +42,7 @@ function validRoomPayload(hostUid, members, now) {
     title: "Night Shift - Emerald Crest",
     hostUid,
     status: "ACTIVE",
+    matchMode: "RANKED",
     memberUids: members,
     northGateStatus: "OPEN",
     southGateStatus: "OPEN",
@@ -119,11 +121,12 @@ test("Users collection: owner create, partial update, cross-user denial, and gho
     aliceDb.collection("users").doc(ALICE_UID).set(validUserPayload(ALICE_UID, now))
   );
 
-  // Partial update: buy uniform, weapon, attribute & earn points
+  // Partial update: buy uniform, weapon, attribute & earn points + rankStars
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
       points: 350,
       apprehensions: 3,
+      rankStars: 4,
       unlockedUniformIds: ["rookie_cadet", "neon_warden"],
       equippedUniformId: "neon_warden",
       unlockedWeaponIds: ["baton_standard", "stun_pistol"],
@@ -131,6 +134,14 @@ test("Users collection: owner create, partial update, cross-user denial, and gho
       unlockedAttributeIds: ["utility_belt", "speed_boots"],
       equippedAttributeId: "speed_boots",
       updatedAt: new Date(Date.now() - 500),
+    })
+  );
+
+  // Reject negative rankStars
+  await assertFails(
+    aliceDb.collection("users").doc(ALICE_UID).update({
+      rankStars: -1,
+      updatedAt: new Date(Date.now() - 400),
     })
   );
 

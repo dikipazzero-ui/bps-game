@@ -14,6 +14,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -34,18 +36,29 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GppGood
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -87,8 +100,10 @@ import com.example.engine.WeaponSoundEngine
 import com.example.model.AttributeCatalog
 import com.example.model.EstateSector
 import com.example.model.EstateWorld
+import com.example.model.GameMatchMode
 import com.example.model.MissionOutcome
 import com.example.model.PatrolRoom
+import com.example.model.RankCatalog
 import com.example.model.RoomPlayer
 import com.example.model.TacticalPing
 import com.example.model.ThiefEntity
@@ -122,10 +137,13 @@ fun Estate3DViewport(
     onWeaponHitThief: () -> Unit,
     onApprehend: () -> Unit,
     onMissionVictory: (Long, Int) -> Unit,
+    onWaveMatchWon: (Long, Int) -> Unit = { _, _ -> },
     onSwitchWeapon: (String) -> Unit,
     onOpenShop: () -> Unit,
     onToggleDrawer: () -> Unit,
     onExitRoom: () -> Unit,
+    bgmMuted: Boolean = false,
+    onToggleBgm: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer(cacheSize = 64)
@@ -144,6 +162,8 @@ fun Estate3DViewport(
     val uniform = UniformCatalog.byId(equippedUniformId)
     val weapon = WeaponCatalog.byId(equippedWeaponId)
     val attribute = AttributeCatalog.byId(equippedAttributeId)
+    val matchMode = GameMatchMode.safeValueOf(room.matchMode)
+    val rankTier = RankCatalog.tierForStars(profile?.rankStars ?: 0L)
 
     // Local Player 3D, Camera (Yaw + Up/Down Pitch) & Vehicle State
     var localX by remember(room.id) { mutableFloatStateOf(me?.posX?.toFloat() ?: 0.50f) }
@@ -151,11 +171,16 @@ fun Estate3DViewport(
     var localFacingDeg by remember(room.id) { mutableFloatStateOf(me?.facingDeg?.toFloat() ?: 0f) }
     var walkPhase by remember { mutableFloatStateOf(0f) }
     var camYaw by remember { mutableFloatStateOf(0f) }
-    var camPitch by remember { mutableFloatStateOf(0.18f) }
+    var camPitch by remember { mutableFloatStateOf(0.24f) }
+    var autoFollowCamera by remember { mutableStateOf(true) }
+    var isCameraDragging by remember { mutableStateOf(false) }
+    var lastManualCamDragMs by remember { mutableLongStateOf(0L) }
     var isNightMode by remember(room.id) { mutableStateOf(false) }
 
     var vehicles by remember(room.id) { mutableStateOf(EstateWorld.defaultVehicles) }
     var mountedVehicleId by remember(room.id) { mutableStateOf<String?>(null) }
+    var helicopterAltitude by remember(room.id) { mutableFloatStateOf(0f) }
+    var targetHeliAltitude by remember(room.id) { mutableFloatStateOf(0f) }
 
     // Multi-Thief Wave State (banyak pencuri tersebar di berbagai blok & gang!)
     var missionWave by remember(room.id) { mutableIntStateOf(1) }
@@ -396,7 +421,7 @@ fun Estate3DViewport(
                         // Diborgol & tidak bisa kabur atau menembak -> jalan lurus masuk Penjara Selaras
                         val dPrison = EstateWorld.distance(thief.x, thief.y, EstateWorld.prisonDoorX, EstateWorld.prisonDoorY)
                         if (dPrison <= 0.028f) {
-                            spawnBurstParticles(EstateWorld.prisonDoorX, EstateWorld.prisonDoorY, 2.2f, Color(0xFFF59E0B), 16, 8f, 2.2f, withRing = true)
+                            spawnBurstParticles(EstateWorld.prisonDoorX, EstateWorld.prisonDoorY, 2.2f, Color(0xFF38BDF8), 16, 8f, 2.2f, withRing = true)
                             continue // Masuk sel penjara!
                         }
                         val prisonAngle = atan2(
@@ -519,14 +544,20 @@ fun Estate3DViewport(
                 }
 
                 if (updatedThieves.isEmpty()) {
-                    // Seluruh maling gelombang ini berhasil masuk penjara -> gelombang baru muncul otomatis!
+                    // Seluruh maling gelombang ini berhasil masuk penjara -> Kemenangan Misi!
+                    val secsBonus = timeRemainingSec.roundToInt().toLong().coerceAtLeast(10L)
+                    onWaveMatchWon(secsBonus, missionWave)
                     val nextWave = missionWave + 1
                     missionWave = nextWave
                     timeRemainingSec = 180f
                     val spawned = EstateWorld.spawnThiefWave(nextWave, localX, localY)
                     thieves = spawned
-                    rewardToastText = "GELOMBANG #$nextWave: ${spawned.size} PENCURI BARU MENYEBAR!"
-                    rewardToastUntilMs = nowMs + 3200L
+                    rewardToastText = if (matchMode == GameMatchMode.RANKED) {
+                        "MENANG RANK! +1 BINTANG ★ • GELOMBANG #$nextWave (${spawned.size} MALING)"
+                    } else {
+                        "MENANG CLASSIC! +${180L + secsBonus} POIN • GELOMBANG #$nextWave (${spawned.size} MALING)"
+                    }
+                    rewardToastUntilMs = nowMs + 3600L
                     spawned.firstOrNull()?.let { firstT ->
                         onSyncThiefEscape(EstateWorld.nearestTo(firstT.x, firstT.y), firstT.x, firstT.y)
                     }
@@ -540,7 +571,17 @@ fun Estate3DViewport(
                     }
                 }
 
-                // Player Movement (On Foot vs Mobil / Motor)
+                // Helicopter altitude interpolation
+                val isFlyingHeli = activeVehicle?.type == VehicleType.HELICOPTER
+                if (isFlyingHeli) {
+                    val altDiff = targetHeliAltitude - helicopterAltitude
+                    helicopterAltitude = (helicopterAltitude + altDiff * (dt * 3.4f).coerceAtMost(1f)).coerceIn(0f, 42f)
+                } else if (helicopterAltitude > 0f || targetHeliAltitude > 0f) {
+                    helicopterAltitude = 0f
+                    targetHeliAltitude = 0f
+                }
+
+                // Player Movement (On Foot vs Mobil / Motor / Helikopter)
                 val joyMag = hypot(joyX, joyY)
                 if (joyMag > 0.08f) {
                     val isDriving = activeVehicle != null
@@ -571,7 +612,12 @@ fun Estate3DViewport(
 
                     val nextX = localX + dirX * speed * joyMag.coerceAtMost(1f) * dt
                     val nextY = localY + dirY * speed * joyMag.coerceAtMost(1f) * dt
-                    val (safeX, safeY) = EstateWorld.moveWithCollision(localX, localY, nextX, nextY)
+                    val isOverRooftops = isFlyingHeli && helicopterAltitude >= 14f
+                    val (safeX, safeY) = if (isOverRooftops) {
+                        nextX.coerceIn(0.03f, 0.97f) to nextY.coerceIn(0.03f, 0.97f)
+                    } else {
+                        EstateWorld.moveWithCollision(localX, localY, nextX, nextY)
+                    }
                     localX = safeX
                     localY = safeY
                     localFacingDeg = Math.toDegrees(atan2(dirX.toDouble(), (-dirY).toDouble())).toFloat()
@@ -584,7 +630,18 @@ fun Estate3DViewport(
                         walkPhase += dt * (if (isSprinting) 14f else 9.5f) * joyMag
                     }
 
-                    if (nowMs - lastDustMs >= (if (isDriving || isSprinting) 130L else 250L)) {
+                    // Auto-follow kamera halus seperti game 3D TPS/GTA (tidak melawan saat pemain baru geser kamera)
+                    if (autoFollowCamera && !isCameraDragging && nowMs - lastManualCamDragMs > 950L) {
+                        if (isDriving) {
+                            val targetYaw = Math.toRadians(localFacingDeg.toDouble()).toFloat()
+                            val diff = atan2(sin(targetYaw - camYaw), cos(targetYaw - camYaw))
+                            camYaw += diff * (dt * 2.5f).coerceAtMost(1f)
+                        } else if (joyY < 0.28f) {
+                            camYaw += joyX * 1.15f * dt
+                        }
+                    }
+
+                    if ((!isFlyingHeli || helicopterAltitude < 9f) && nowMs - lastDustMs >= (if (isDriving || isSprinting) 130L else 250L)) {
                         lastDustMs = nowMs
                         spawnBurstParticles(localX, localY, 0.2f, Color(0xFF94A3B8), 2, if (isDriving) 3.2f else 1.8f, 1.3f)
                     }
@@ -606,45 +663,64 @@ fun Estate3DViewport(
     val nearestThief = activeThieves.minByOrNull { EstateWorld.distance(localX, localY, it.x, it.y) }
     val distToNearest = nearestThief?.let { EstateWorld.distance(localX, localY, it.x, it.y) } ?: 999f
 
-    val visibleThiefIds = remember(thieves, localX, localY, attribute.visionBoost) {
+    val mountedVehicle = vehicles.firstOrNull { it.id == mountedVehicleId }
+    val isFlyingHeliAirborne = mountedVehicle?.type == VehicleType.HELICOPTER && helicopterAltitude >= 10f
+
+    val visibleThiefIds = remember(thieves, localX, localY, attribute.visionBoost, isFlyingHeliAirborne) {
         thieves.filter { t ->
             t.goingToPrison ||
+                (isFlyingHeliAirborne && EstateWorld.distance(localX, localY, t.x, t.y) <= 0.58f) ||
                 EstateWorld.hasLineOfSight(localX, localY, t.x, t.y) ||
                 EstateWorld.distance(localX, localY, t.x, t.y) <= (0.16f + attribute.visionBoost * 0.14f)
         }.map { it.id }.toSet()
     }
-    val radarVisibleThiefIds = remember(thieves, localX, localY, attribute.visionBoost, nowMs < thiefSpottedHintUntilMs) {
+    val radarVisibleThiefIds = remember(thieves, localX, localY, attribute.visionBoost, nowMs < thiefSpottedHintUntilMs, isFlyingHeliAirborne) {
         thieves.filter { t ->
             t.goingToPrison ||
                 nowMs < thiefSpottedHintUntilMs ||
+                (isFlyingHeliAirborne && EstateWorld.distance(localX, localY, t.x, t.y) <= 0.65f) ||
                 EstateWorld.hasLineOfSight(localX, localY, t.x, t.y) ||
                 EstateWorld.distance(localX, localY, t.x, t.y) <= (0.20f + attribute.visionBoost * 0.18f)
         }.map { it.id }.toSet()
     }
 
-    val inCatchRange = nearestThief != null && distToNearest <= (0.14f + attribute.catchRadiusBonus * 0.45f)
+    val inCatchRange = !isFlyingHeliAirborne && nearestThief != null && distToNearest <= (0.14f + attribute.catchRadiusBonus * 0.45f)
     val totalSecs = timeRemainingSec.roundToInt().coerceAtLeast(0)
     val timerText = "%02d:%02d".format(totalSecs / 60, totalSecs % 60)
 
-    val mountedVehicle = vehicles.firstOrNull { it.id == mountedVehicleId }
     val nearbyVehicle = if (mountedVehicle == null) {
         vehicles.minByOrNull { EstateWorld.distance(localX, localY, it.x, it.y) }
-            ?.takeIf { EstateWorld.distance(localX, localY, it.x, it.y) <= 0.06f }
+            ?.takeIf { EstateWorld.distance(localX, localY, it.x, it.y) <= 0.065f }
     } else null
 
     val effectiveArmorPct = ((uniform.damageReduction + (mountedVehicle?.type?.armorBonus ?: 0f)).coerceAtMost(0.88f) * 100).toInt()
     val gtaCashDisplay = "$" + ((profile?.points ?: 0L).coerceAtLeast(0L)).toString().padStart(8, '0')
 
     Box(modifier = modifier) {
-        // 1. Fullscreen Solid 3D World Canvas (Drag horizontal = Yaw, vertical = Look Up / Down Pitch)
+        // 1. Fullscreen Solid 3D World Canvas (Geser kiri/kanan = Putar Kamera, atas = Lihat Atas, bawah = Lihat Bawah)
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("estate_3d_canvas")
-                .pointerInput(Unit) {
-                    detectDragGestures { _, dragAmount ->
-                        camYaw += dragAmount.x * 0.006f
-                        camPitch = (camPitch - dragAmount.y * 0.0045f).coerceIn(-0.22f, 0.85f)
+                .pointerInput(isFlyingHeliAirborne) {
+                    detectDragGestures(
+                        onDragStart = {
+                            isCameraDragging = true
+                        },
+                        onDragEnd = {
+                            isCameraDragging = false
+                            lastManualCamDragMs = System.currentTimeMillis()
+                        },
+                        onDragCancel = {
+                            isCameraDragging = false
+                            lastManualCamDragMs = System.currentTimeMillis()
+                        }
+                    ) { _, dragAmount ->
+                        camYaw += dragAmount.x * 0.0055f
+                        val maxDragPitch = if (isFlyingHeliAirborne) 0.92f else 0.65f
+                        // Geser ke atas (dragAmount.y < 0) -> lihat ke atas; geser ke bawah -> sudut lebih tinggi/melihat atap & jalan
+                        camPitch = (camPitch + dragAmount.y * 0.0040f).coerceIn(-0.10f, maxDragPitch)
+                        lastManualCamDragMs = System.currentTimeMillis()
                     }
                 }
         ) {
@@ -654,6 +730,7 @@ fun Estate3DViewport(
                 pings = pings,
                 vehicles = vehicles,
                 mountedVehicleId = mountedVehicleId,
+                mountedAltitude = helicopterAltitude,
                 currentUserId = currentUserId,
                 localPlayerX = localX,
                 localPlayerY = localY,
@@ -677,32 +754,142 @@ fun Estate3DViewport(
             )
         }
 
-        // 2. POJOK KIRI ATAS (GTA San Andreas style): Peta / Mini-Radar dipindah ke ATAS!
-        MiniRadarOverlay(
-            players = players,
-            vehicles = vehicles,
-            thieves = thieves,
-            radarVisibleThiefIds = radarVisibleThiefIds,
-            localX = localX,
-            localY = localY,
-            localFacingDeg = localFacingDeg,
-            isPingMode = isPingMode,
-            onRadarTap = { nx, ny ->
-                val sec = EstateWorld.nearestTo(nx, ny)
-                if (isPingMode) {
-                    onRadarPingTap(sec, nx, ny)
-                } else {
-                    val (safeX, safeY) = EstateWorld.moveWithCollision(localX, localY, nx, ny)
-                    localX = safeX
-                    localY = safeY
-                    onMoveSync(sec, safeX, safeY, localFacingDeg)
-                }
-            },
+        // 2. POJOK KIRI ATAS (GTA San Andreas style): Peta / Mini-Radar + Kontrol Sudut Kamera Cepat
+        Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 10.dp, start = 10.dp)
-                .size(104.dp)
-        )
+                .padding(top = 10.dp, start = 10.dp),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            MiniRadarOverlay(
+                players = players,
+                vehicles = vehicles,
+                thieves = thieves,
+                radarVisibleThiefIds = radarVisibleThiefIds,
+                localX = localX,
+                localY = localY,
+                localFacingDeg = localFacingDeg,
+                isPingMode = isPingMode,
+                onRadarTap = { nx, ny ->
+                    val sec = EstateWorld.nearestTo(nx, ny)
+                    if (isPingMode) {
+                        onRadarPingTap(sec, nx, ny)
+                    } else {
+                        val (safeX, safeY) = EstateWorld.moveWithCollision(localX, localY, nx, ny)
+                        localX = safeX
+                        localY = safeY
+                        onMoveSync(sec, safeX, safeY, localFacingDeg)
+                    }
+                },
+                modifier = Modifier.size(100.dp)
+            )
+
+            // Kontrol Sudut Kamera & Auto-Follow tepat di bawah Radar (jauh dari jempol analog!)
+            val pitchPresetLabel = when {
+                camPitch < 0.15f -> "RENDAH"
+                camPitch > 0.36f -> "TINGGI"
+                else -> "NORMAL"
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    onClick = { autoFollowCamera = !autoFollowCamera },
+                    color = if (autoFollowCamera) Color(0xD8064E3B) else Color(0xCC0F172A),
+                    shape = RoundedCornerShape(7.dp),
+                    border = BorderStroke(1.dp, if (autoFollowCamera) Color(0xFF34D399) else Color(0xFF475569)),
+                    modifier = Modifier.testTag("camera_autofollow_btn")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Videocam,
+                            contentDescription = "Kamera Ikuti Karakter",
+                            tint = if (autoFollowCamera) Color(0xFF6EE7B7) else Color(0xFF94A3B8),
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = if (autoFollowCamera) "IKUTI" else "BEBAS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 8.sp
+                        )
+                    }
+                }
+
+                Surface(
+                    onClick = {
+                        camPitch = when {
+                            camPitch < 0.15f -> 0.24f
+                            camPitch < 0.36f -> 0.48f
+                            else -> 0.07f
+                        }
+                    },
+                    color = Color(0xCC0F172A),
+                    shape = RoundedCornerShape(7.dp),
+                    border = BorderStroke(1.dp, Color(0xFF38BDF8)),
+                    modifier = Modifier.testTag("camera_angle_preset_btn")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Visibility,
+                            contentDescription = "Ubah Sudut Pandang Kamera",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = pitchPresetLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFE0F2FE),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 8.sp
+                        )
+                    }
+                }
+
+                Surface(
+                    onClick = {
+                        camYaw = Math.toRadians(localFacingDeg.toDouble()).toFloat()
+                        camPitch = if (isFlyingHeliAirborne) 0.42f else 0.24f
+                        lastManualCamDragMs = 0L
+                    },
+                    color = Color(0xCC0F172A),
+                    shape = RoundedCornerShape(7.dp),
+                    border = BorderStroke(1.dp, Color(0xFF3B82F6)),
+                    modifier = Modifier.testTag("camera_recenter_btn")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CenterFocusStrong,
+                            contentDescription = "Luruskan Kamera ke Belakang Karakter",
+                            tint = Color(0xFF93C5FD),
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = "LURUS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF93C5FD),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 8.sp
+                        )
+                    }
+                }
+            }
+        }
 
         // 3. ATAS TENGAH: HP Maling Terdekat (saat terlihat) + Notif Zona / Penangkapan Non-Blocking
         Column(
@@ -805,10 +992,54 @@ fun Estate3DViewport(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Surface(
-                            onClick = { isNightMode = !isNightMode },
-                            color = if (isNightMode) Color(0xD81E1B4B) else Color(0xD8422006),
+                            color = if (matchMode == GameMatchMode.RANKED) Color(0xD81D4ED8) else Color(0xD80369A1),
                             shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, if (isNightMode) Color(0xFF818CF8) else Color(0xFFFBBF24)),
+                            border = BorderStroke(1.dp, Color(0xFF60A5FA)),
+                            modifier = Modifier.testTag("hud_match_mode_badge")
+                        ) {
+                            Text(
+                                text = matchMode.badgeLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 9.sp,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+
+                        Surface(
+                            onClick = onToggleBgm,
+                            color = if (!bgmMuted) Color(0xD80B2447) else Color(0xCC0F172A),
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, if (!bgmMuted) Color(0xFF3B82F6) else Color(0xFF475569)),
+                            modifier = Modifier.testTag("bgm_toggle_btn")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (!bgmMuted) Icons.Filled.MusicNote else Icons.Filled.MusicOff,
+                                    contentDescription = "Musik Backsound GTA",
+                                    tint = if (!bgmMuted) Color(0xFF60A5FA) else Color(0xFF94A3B8),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = if (!bgmMuted) "BGM" else "BISU",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+
+                        Surface(
+                            onClick = { isNightMode = !isNightMode },
+                            color = if (isNightMode) Color(0xD81E1B4B) else Color(0xD80F2547),
+                            shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, if (isNightMode) Color(0xFF818CF8) else Color(0xFF3B82F6)),
                             modifier = Modifier.testTag("day_night_toggle_btn")
                         ) {
                             Row(
@@ -819,7 +1050,7 @@ fun Estate3DViewport(
                                 Icon(
                                     imageVector = if (isNightMode) Icons.Filled.DarkMode else Icons.Filled.WbSunny,
                                     contentDescription = "Mode Siang atau Malam",
-                                    tint = if (isNightMode) Color(0xFFA5B4FC) else Color(0xFFFDE047),
+                                    tint = if (isNightMode) Color(0xFFA5B4FC) else Color(0xFF60A5FA),
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
@@ -835,7 +1066,7 @@ fun Estate3DViewport(
                         Text(
                             text = timerText,
                             style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFontFamily),
-                            color = if (totalSecs <= 20) Color(0xFFEF4444) else Color(0xFFFDE047),
+                            color = if (totalSecs <= 20) Color(0xFFEF4444) else Color(0xFF60A5FA),
                             fontWeight = FontWeight.ExtraBold
                         )
                     }
@@ -880,7 +1111,7 @@ fun Estate3DViewport(
                         )
                         LinearProgressIndicator(
                             progress = { stamina },
-                            color = if (sprintEnabled) Color(0xFFF59E0B) else Color(0xFF38BDF8),
+                            color = if (sprintEnabled) Color(0xFF3B82F6) else Color(0xFF38BDF8),
                             trackColor = Color(0xFF0F172A),
                             modifier = Modifier
                                 .width(42.dp)
@@ -890,7 +1121,14 @@ fun Estate3DViewport(
                     }
                 }
 
-                // Kotak Ikon Senjata GTA SA di pojok kanan atas (ketuk untuk ganti senjata)
+                // Lencana Bingkai Rank Akun + Kotak Ikon Senjata GTA SA
+                RankAvatarFrame(
+                    tier = rankTier,
+                    avatarBgColor = uniform.primaryColor,
+                    size = 46.dp,
+                    showLevelBadge = true
+                )
+
                 Surface(
                     onClick = {
                         if (unlockedWeapons.size > 1) {
@@ -915,9 +1153,13 @@ fun Estate3DViewport(
                     ) {
                         val weaponIcon = when (weapon.style) {
                             WeaponStyle.PISTOL -> Icons.Filled.GppGood
+                            WeaponStyle.SHOTGUN -> Icons.Filled.Whatshot
+                            WeaponStyle.SMG -> Icons.Filled.Speed
                             WeaponStyle.GRENADE -> Icons.Filled.LocalFireDepartment
                             WeaponStyle.AK47 -> Icons.Filled.Bolt
+                            WeaponStyle.SNIPER -> Icons.Filled.TrackChanges
                             WeaponStyle.BAZOOKA -> Icons.Filled.RocketLaunch
+                            WeaponStyle.MINIGUN -> Icons.Filled.Bolt
                         }
                         Icon(
                             imageVector = weaponIcon,
@@ -940,8 +1182,9 @@ fun Estate3DViewport(
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     onClick = onOpenShop,
-                    color = Color(0xE6F59E0B),
+                    color = Color(0xE62563EB),
                     shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFF60A5FA)),
                     modifier = Modifier.testTag("hud_open_shop_btn")
                 ) {
                     Row(
@@ -949,8 +1192,8 @@ fun Estate3DViewport(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Icon(Icons.Filled.ShoppingBag, null, tint = Color(0xFF090E1A), modifier = Modifier.size(12.dp))
-                        Text("TOKO", style = MaterialTheme.typography.labelSmall, color = Color(0xFF090E1A), fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
+                        Icon(Icons.Filled.ShoppingBag, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                        Text("TOKO", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
                     }
                 }
 
@@ -990,7 +1233,7 @@ fun Estate3DViewport(
             }
         }
 
-        // 5. POJOK KIRI BAWAH: HANYA Analog Joystick saja (Peta sudah dipindah ke atas!)
+        // 5. KIRI BAWAH (digeser agak ke kanan & ke atas agar nyaman dijangkau ibu jari kiri)
         VirtualJoystick3D(
             joyX = joyX,
             joyY = joyY,
@@ -1006,8 +1249,8 @@ fun Estate3DViewport(
             },
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 14.dp, bottom = 12.dp)
-                .size(96.dp)
+                .padding(start = 34.dp, bottom = 30.dp)
+                .size(108.dp)
         )
 
         // 6. POJOK KANAN BAWAH: Tangkap (bekukan maling & arahkan ke Penjara!), Naik/Turun Kendaraan, Sprint, Tembak
@@ -1024,7 +1267,7 @@ fun Estate3DViewport(
                         sendThiefToPrison(nearestThief, "TERTANGKAP")
                         onApprehend()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B), contentColor = Color(0xFF090E1A)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB), contentColor = Color.White),
                     shape = RoundedCornerShape(14.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                     modifier = Modifier
@@ -1038,11 +1281,94 @@ fun Estate3DViewport(
             }
 
             if (mountedVehicle != null) {
+                if (mountedVehicle.type == VehicleType.HELICOPTER) {
+                    Surface(
+                        color = Color(0xD80A192F),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFF38BDF8))
+                    ) {
+                        Text(
+                            text = if (helicopterAltitude >= 14f) "ALT ${helicopterAltitude.roundToInt()}m • MENGINTAI ATAP" else "ALT ${helicopterAltitude.roundToInt()}m • RENDAH",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF7DD3FC),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Button(
+                            onClick = {
+                                targetHeliAltitude = (targetHeliAltitude + 7f).coerceAtMost(42f)
+                                soundEngine.playHelicopterRotor()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7), contentColor = Color.White),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .testTag("heli_climb_btn")
+                        ) {
+                            Icon(Icons.Filled.KeyboardArrowUp, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(2.dp))
+                            Text("NAIK", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold)
+                        }
+                        Button(
+                            onClick = {
+                                targetHeliAltitude = (targetHeliAltitude - 7f).coerceAtLeast(0f)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A8A), contentColor = Color.White),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .testTag("heli_descend_btn")
+                        ) {
+                            Icon(Icons.Filled.KeyboardArrowDown, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(2.dp))
+                            Text("TURUN", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
+                }
+
                 Button(
                     onClick = {
-                        val (dx, dy) = EstateWorld.moveWithCollision(localX, localY, localX + 0.025f, localY + 0.025f)
-                        localX = dx
-                        localY = dy
+                        if (mountedVehicle.type == VehicleType.HELICOPTER) {
+                            var landX = localX
+                            var landY = localY
+                            if (!EstateWorld.isWalkable(landX, landY)) {
+                                // Cari jalan/ruang terbuka terdekat di sekitar posisi helikopter agar aman mendarat
+                                val offsets = listOf(0f, 0.04f, -0.04f, 0.08f, -0.08f, 0.12f, -0.12f)
+                                outer@ for (ox in offsets) {
+                                    for (oy in offsets) {
+                                        val cx = (localX + ox).coerceIn(0.05f, 0.95f)
+                                        val cy = (localY + oy).coerceIn(0.05f, 0.95f)
+                                        if (EstateWorld.isWalkable(cx, cy)) {
+                                            landX = cx
+                                            landY = cy
+                                            break@outer
+                                        }
+                                    }
+                                }
+                                if (!EstateWorld.isWalkable(landX, landY)) {
+                                    val sec = EstateWorld.nearestTo(localX, localY)
+                                    landX = sec.normX
+                                    landY = sec.normY
+                                }
+                            }
+                            vehicles = vehicles.map { v ->
+                                if (v.id == mountedVehicleId) v.copy(x = landX, y = landY) else v
+                            }
+                            localX = landX
+                            localY = landY
+                            helicopterAltitude = 0f
+                            targetHeliAltitude = 0f
+                            camPitch = 0.24f
+                        } else {
+                            val (dx, dy) = EstateWorld.moveWithCollision(localX, localY, localX + 0.025f, localY + 0.025f)
+                            localX = dx
+                            localY = dy
+                        }
                         mountedVehicleId = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444), contentColor = Color.White),
@@ -1053,12 +1379,16 @@ fun Estate3DViewport(
                         .testTag("dismount_vehicle_btn")
                 ) {
                     Icon(
-                        if (mountedVehicle.type == VehicleType.CAR) Icons.Filled.DirectionsCar else Icons.Filled.TwoWheeler,
+                        when (mountedVehicle.type) {
+                            VehicleType.CAR -> Icons.Filled.DirectionsCar
+                            VehicleType.MOTORCYCLE -> Icons.Filled.TwoWheeler
+                            VehicleType.HELICOPTER -> Icons.Filled.FlightTakeoff
+                        },
                         null,
                         Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(5.dp))
-                    Text("TURUN", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold)
+                    Text(if (mountedVehicle.type == VehicleType.HELICOPTER) "MENDARAT" else "TURUN", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold)
                 }
             } else if (nearbyVehicle != null) {
                 Button(
@@ -1068,8 +1398,13 @@ fun Estate3DViewport(
                         localY = nearbyVehicle.y
                         localFacingDeg = nearbyVehicle.facingDeg
                         sprintEnabled = false
+                        if (nearbyVehicle.type == VehicleType.HELICOPTER) {
+                            targetHeliAltitude = 28f
+                            camPitch = 0.42f
+                            soundEngine.playHelicopterRotor()
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7), contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB), contentColor = Color.White),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier
@@ -1077,13 +1412,21 @@ fun Estate3DViewport(
                         .testTag("mount_vehicle_btn")
                 ) {
                     Icon(
-                        if (nearbyVehicle.type == VehicleType.CAR) Icons.Filled.DirectionsCar else Icons.Filled.TwoWheeler,
+                        when (nearbyVehicle.type) {
+                            VehicleType.CAR -> Icons.Filled.DirectionsCar
+                            VehicleType.MOTORCYCLE -> Icons.Filled.TwoWheeler
+                            VehicleType.HELICOPTER -> Icons.Filled.FlightTakeoff
+                        },
                         null,
                         Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(5.dp))
                     Text(
-                        if (nearbyVehicle.type == VehicleType.CAR) "NAIK MOBIL" else "NAIK MOTOR",
+                        when (nearbyVehicle.type) {
+                            VehicleType.CAR -> "NAIK MOBIL"
+                            VehicleType.MOTORCYCLE -> "NAIK MOTOR"
+                            VehicleType.HELICOPTER -> "TERBANG HELI"
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -1112,7 +1455,7 @@ fun Estate3DViewport(
                     }
                 }
 
-                // Tombol Tembak / Lempar (Suara Pistol, AK-47, Granat, Bazoka)
+                // Tombol Tembak / Lempar (Suara 8 Senjata + Serangan Udara dari Helikopter)
                 Surface(
                     onClick = {
                         if (missionOutcome != MissionOutcome.ACTIVE) return@Surface
@@ -1122,13 +1465,13 @@ fun Estate3DViewport(
                             soundEngine.playWeaponFire(weapon.style)
 
                             val aimRad = Math.toRadians(localFacingDeg.toDouble()).toFloat()
-                            val hitRange = weapon.rangeNorm * 0.65f + weapon.aoeRadius * 0.65f
+                            val hitRange = weapon.rangeNorm * 0.65f + weapon.aoeRadius * 0.65f + (if (isFlyingHeliAirborne) 0.14f else 0f)
 
                             // Cari target maling aktif terdekat dalam jangkauan tembak
                             val hitTarget = activeThieves
                                 .filter { t ->
                                     val d = EstateWorld.distance(localX, localY, t.x, t.y)
-                                    val canReach = weapon.aoeRadius > 0f || EstateWorld.hasLineOfSight(localX, localY, t.x, t.y)
+                                    val canReach = isFlyingHeliAirborne || weapon.aoeRadius > 0f || EstateWorld.hasLineOfSight(localX, localY, t.x, t.y)
                                     d <= hitRange && canReach
                                 }
                                 .minByOrNull { EstateWorld.distance(localX, localY, it.x, it.y) }
@@ -1220,7 +1563,7 @@ fun Estate3DViewport(
                     shape = RoundedCornerShape(20.dp),
                     border = BorderStroke(
                         2.dp,
-                        if (missionOutcome == MissionOutcome.WASTED) Color(0xFFEF4444) else Color(0xFFF59E0B)
+                        if (missionOutcome == MissionOutcome.WASTED) Color(0xFFEF4444) else Color(0xFF3B82F6)
                     ),
                     modifier = Modifier
                         .padding(20.dp)
@@ -1234,14 +1577,14 @@ fun Estate3DViewport(
                         Text(
                             text = if (missionOutcome == MissionOutcome.WASTED) "WASTED // TUMBANG" else "WAKTU HABIS (TIME UP)",
                             style = MaterialTheme.typography.titleLarge,
-                            color = if (missionOutcome == MissionOutcome.WASTED) Color(0xFFF87171) else Color(0xFFFBBF24),
+                            color = if (missionOutcome == MissionOutcome.WASTED) Color(0xFFF87171) else Color(0xFF60A5FA),
                             fontWeight = FontWeight.ExtraBold
                         )
                         Text(
                             text = if (missionOutcome == MissionOutcome.WASTED) {
-                                "Petugas kehabisan HP! Gunakan Mobil/Motor atau tingkatkan Baju Armor Premium di Toko."
+                                "Petugas kehabisan HP! Gunakan Mobil/Motor/Helikopter atau tingkatkan Baju Armor Premium di Toko."
                             } else {
-                                "Timer habis sebelum semua pencuri dimasukkan ke Penjara Selaras! Naik kendaraan untuk mengejar."
+                                "Timer habis sebelum semua pencuri dimasukkan ke Penjara Selaras! Gunakan Helikopter atau kendaraan untuk mengejar."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFCBD5E1)
@@ -1262,8 +1605,8 @@ fun Estate3DViewport(
                             Button(
                                 onClick = { resetAfterFailure() },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFF59E0B),
-                                    contentColor = Color(0xFF090E1A)
+                                    containerColor = Color(0xFF2563EB),
+                                    contentColor = Color.White
                                 ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
@@ -1293,20 +1636,37 @@ private fun VirtualJoystick3D(
     Box(
         modifier = modifier
             .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragEnd = { onStickRelease() },
-                    onDragCancel = { onStickRelease() }
-                ) { change, _ ->
-                    change.consume()
-                    val cx = size.width / 2f
-                    val cy = size.height / 2f
-                    val maxR = minOf(cx, cy) * 0.8f
-                    if (maxR <= 1f) return@detectDragGestures
-                    val dx = change.position.x - cx
-                    val dy = change.position.y - cy
-                    val dist = hypot(dx, dy).coerceAtLeast(0.001f)
-                    val clamped = dist.coerceAtMost(maxR)
-                    onStickMove((dx / dist) * (clamped / maxR), (dy / dist) * (clamped / maxR))
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+
+                    fun updateStick(pos: Offset) {
+                        val cx = size.width / 2f
+                        val cy = size.height / 2f
+                        val maxR = minOf(cx, cy) * 0.78f
+                        if (maxR <= 1f) return
+                        val dx = pos.x - cx
+                        val dy = pos.y - cy
+                        val dist = hypot(dx, dy)
+                        if (dist <= 2f) {
+                            onStickMove(0f, 0f)
+                        } else {
+                            val clamped = dist.coerceAtMost(maxR)
+                            onStickMove((dx / dist) * (clamped / maxR), (dy / dist) * (clamped / maxR))
+                        }
+                    }
+
+                    updateStick(down.position)
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        if (change == null || !change.pressed) {
+                            onStickRelease()
+                            break
+                        }
+                        change.consume()
+                        updateStick(change.position)
+                    }
                 }
             }
     ) {
@@ -1315,14 +1675,26 @@ private fun VirtualJoystick3D(
             val cy = size.height / 2f
             val outerR = minOf(cx, cy) * 0.92f
             if (outerR <= 1f) return@Canvas
-            val knobR = outerR * 0.40f
+            val knobR = outerR * 0.39f
             val travel = outerR * 0.56f
 
-            drawCircle(Color(0x78090E1A), outerR, Offset(cx, cy))
-            drawCircle(Color(0xFF38BDF8).copy(alpha = 0.5f), outerR, Offset(cx, cy), style = Stroke(width = 2.5f))
+            drawCircle(Color(0x88090E1A), outerR, Offset(cx, cy))
+            drawCircle(Color(0xFF38BDF8).copy(alpha = 0.58f), outerR, Offset(cx, cy), style = Stroke(width = 2.5f))
+            // Penanda arah N/E/S/W tipis di pinggir ring analog
+            val tickR = outerR * 0.80f
+            drawCircle(Color(0xFF94A3B8).copy(alpha = 0.5f), radius = 2.2f, center = Offset(cx, cy - tickR))
+            drawCircle(Color(0xFF94A3B8).copy(alpha = 0.5f), radius = 2.2f, center = Offset(cx, cy + tickR))
+            drawCircle(Color(0xFF94A3B8).copy(alpha = 0.5f), radius = 2.2f, center = Offset(cx - tickR, cy))
+            drawCircle(Color(0xFF94A3B8).copy(alpha = 0.5f), radius = 2.2f, center = Offset(cx + tickR, cy))
+
             drawCircle(
-                color = Color(0xFF22D3EE).copy(alpha = 0.88f),
+                color = Color(0xFF22D3EE).copy(alpha = 0.92f),
                 radius = knobR,
+                center = Offset(cx + joyX * travel, cy + joyY * travel)
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = 0.45f),
+                radius = knobR * 0.55f,
                 center = Offset(cx + joyX * travel, cy + joyY * travel)
             )
         }
@@ -1344,7 +1716,7 @@ private fun MiniRadarOverlay(
 ) {
     val textMeasurer = rememberTextMeasurer(cacheSize = 16)
     val prisonTagLayout = remember(textMeasurer) {
-        textMeasurer.measure("P", TextStyle(color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold))
+        textMeasurer.measure("P", TextStyle(color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold))
     }
     val radarZoomRadius = 0.28f
 
@@ -1354,7 +1726,7 @@ private fun MiniRadarOverlay(
             .background(Color(0xDC080D1A))
             .border(
                 width = 2.5.dp,
-                color = if (isPingMode) Color(0xFFF59E0B) else Color(0xFFE2E8F0),
+                color = if (isPingMode) Color(0xFF38BDF8) else Color(0xFFE2E8F0),
                 shape = CircleShape
             )
             .pointerInput(isPingMode, localX, localY) {
@@ -1399,7 +1771,7 @@ private fun MiniRadarOverlay(
                     drawRoundRect(
                         color = when {
                             b.isMosque -> Color(0xFF10B981)
-                            b.isPrison -> Color(0xFFD97706)
+                            b.isPrison -> Color(0xFF1E3A8A)
                             else -> Color(0xFF334155)
                         },
                         topLeft = Offset(left, top),
@@ -1412,7 +1784,7 @@ private fun MiniRadarOverlay(
                 val px = mapX(EstateWorld.prisonDoorX)
                 val py = mapY(EstateWorld.prisonDoorY)
                 if (px in -20f..(w + 20f) && py in -20f..(h + 20f)) {
-                    drawCircle(Color(0xFFF59E0B), radius = 6.5f, center = Offset(px, py))
+                    drawCircle(Color(0xFF2563EB), radius = 6.5f, center = Offset(px, py))
                     drawText(
                         prisonTagLayout,
                         topLeft = Offset(px - prisonTagLayout.size.width / 2f, py - prisonTagLayout.size.height / 2f)
@@ -1423,10 +1795,14 @@ private fun MiniRadarOverlay(
                 vehicles.forEach { v ->
                     val vx = mapX(v.x)
                     val vy = mapY(v.y)
-                    if (v.type == VehicleType.CAR) {
-                        drawRect(Color(0xFF38BDF8), Offset(vx - 3f, vy - 2f), Size(6f, 4f))
-                    } else {
-                        drawCircle(Color(0xFFF59E0B), radius = 2.6f, center = Offset(vx, vy))
+                    when (v.type) {
+                        VehicleType.CAR -> drawRect(Color(0xFF38BDF8), Offset(vx - 3f, vy - 2f), Size(6f, 4f))
+                        VehicleType.MOTORCYCLE -> drawCircle(Color(0xFF60A5FA), radius = 2.6f, center = Offset(vx, vy))
+                        VehicleType.HELICOPTER -> {
+                            drawCircle(Color(0xFF7DD3FC), radius = 4.2f, center = Offset(vx, vy), style = Stroke(width = 1.3f))
+                            drawLine(Color(0xFF7DD3FC), Offset(vx - 4.5f, vy), Offset(vx + 4.5f, vy), strokeWidth = 1.4f)
+                            drawLine(Color(0xFF7DD3FC), Offset(vx, vy - 4.5f), Offset(vx, vy + 4.5f), strokeWidth = 1.4f)
+                        }
                     }
                 }
 
@@ -1458,7 +1834,7 @@ private fun MiniRadarOverlay(
                         lineTo(rightW.x, rightW.y)
                         close()
                     },
-                    Color(0xFFFDE047)
+                    Color(0xFF38BDF8)
                 )
             }
 

@@ -86,7 +86,8 @@ fun GameDesignScreen(
                     icon = Icons.Filled.SportsEsports,
                     title = "1. Alur State & Pertarungan (Gaya GTA)",
                     bullets = listOf(
-                        "Alur State: Menu Markas -> Patroli / Misi (Timer 02:00) -> Pertarungan (Baku Tembak HP vs HP) -> Menang (+Poin) / Kalah (Wasted / Time Up) -> Toko 3D -> Misi Berikutnya.",
+                        "Mode Rank vs Classic: Pilih Mode RANK untuk meraih +1 Bintang per kemenangan dan naik melampaui 10 Level Status Akun (Bingkai Foto Profil makin mewah hingga Legenda Abadi BPS), atau Mode CLASSIC untuk mengumpulkan Poin Patroli santai.",
+                        "Alur State: Menu Markas -> Patroli / Misi (Timer 02:00) -> Pertarungan (Baku Tembak HP vs HP) -> Menang (+Poin / +1 ★ Rank) / Kalah (Wasted / Time Up) -> Toko 3D -> Misi Berikutnya.",
                         "HUD Pojok Kiri Bawah: Mini-Map melingkar ala GTA dengan arah hadap pemain, blok perumahan, ikon Masjid Agung, dan penunjuk arah pencuri + Joystick Analog di atasnya.",
                         "HUD Pojok Kanan Atas: Timer hitung mundur misi, Poin pemain, notifikasi blok ('MEMASUKI BLOK CEMARA'), tombol ganti senjata cepat, dan pintasan TOKO.",
                         "HUD Kiri Atas & Tengah: Bar Nyawa (HP), Level Armor & reduksi damage, Stamina, serta Bar Nyawa Pencuri saat duel berlangsung.",
@@ -111,7 +112,8 @@ fun GameDesignScreen(
                     title = "3. Toko Baju Armor (Lv.1–5), Senjata & Atribut",
                     bullets = listOf(
                         "Baju Armor Premium (Level 1 hingga 5): Meredam damage tembakan pencuri mulai dari 10% (Level 1) hingga 75% (Level 5 Titanium MAX).",
-                        "4 Senjata Inti: Pistol Taktis 9mm (24 DMG, lincah), Granat Ledak MK-II (60 DMG Area), AK-47 Otomatis (22 DMG tembakan cepat), dan Bazoka Peluncur Roket (95 DMG daya ledak maksimal).",
+                        "8 Senjata Progresif 3D: Pistol 9mm (24 DMG), Shotgun 12G (52 DMG), SMG MP5 (28 DMG cepat), Granat MK-II (75 DMG Area), AK-47 (42 DMG), Sniper AWP (120 DMG), Bazoka RPG (155 DMG), dan Minigun Vulcan (62 DMG super cepat).",
+                        "Kendaraan Patroli Darat & Udara: Mobil Patroli, Motor Patroli, dan Helikopter Patroli yang bisa terbang naik melewati atap gedung untuk mengintai dan menembak pencuri dari udara.",
                         "Atribut Kebutuhan (5 pilihan): Sabuk Utilitas, Sepatu Turbo (+38% lari), Pelindung Stamina (-50% drain), Kacamata Malam NVG, dan Drone Pemindai Mini."
                     )
                 )

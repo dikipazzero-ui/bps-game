@@ -58,7 +58,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -67,6 +70,7 @@ import com.example.auth.AuthScreen
 import com.example.auth.signOut
 import com.example.data.BlockWatchRepository
 import com.example.engine.GandiVoiceSpeaker
+import com.example.engine.GtaSoundtrackEngine
 import com.example.ui.screens.GameDesignScreen
 import com.example.ui.screens.LobbyScreen
 import com.example.ui.screens.PatrolHudScreen
@@ -102,6 +106,30 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppContent() {
+    val bgmEngine = remember { GtaSoundtrackEngine() }
+    var bgmMuted by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, bgmEngine) {
+        bgmEngine.start()
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> bgmEngine.resume()
+                Lifecycle.Event.ON_PAUSE -> bgmEngine.pause()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            bgmEngine.release()
+        }
+    }
+
+    LaunchedEffect(bgmMuted) {
+        bgmEngine.setMuted(bgmMuted)
+    }
+
     var currentUser by remember { mutableStateOf(Firebase.auth.currentUser) }
     DisposableEffect(Unit) {
         val listener = FirebaseAuth.AuthStateListener { auth ->
@@ -118,7 +146,9 @@ fun AppContent() {
         key(user.uid) {
             BlockWatchRoot(
                 currentUserId = user.uid,
-                displayName = user.displayName
+                displayName = user.displayName,
+                bgmMuted = bgmMuted,
+                onToggleBgm = { bgmMuted = !bgmMuted }
             )
         }
     }
@@ -127,7 +157,9 @@ fun AppContent() {
 @Composable
 fun BlockWatchRoot(
     currentUserId: String,
-    displayName: String?
+    displayName: String?,
+    bgmMuted: Boolean = false,
+    onToggleBgm: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -156,6 +188,7 @@ fun BlockWatchRoot(
     val profileState by viewModel.profileState.collectAsStateWithLifecycle()
     val roomsState by viewModel.myRoomsState.collectAsStateWithLifecycle()
     val roomBundleState by viewModel.roomBundleState.collectAsStateWithLifecycle()
+    val selectedMatchMode by viewModel.selectedMatchMode.collectAsStateWithLifecycle()
     val statusBanner by viewModel.statusBanner.collectAsStateWithLifecycle()
     val isBusy by viewModel.isBusy.collectAsStateWithLifecycle()
     val pttActive by viewModel.pttActive.collectAsStateWithLifecycle()
@@ -208,8 +241,11 @@ fun BlockWatchRoot(
                 onSetPtt = { active, hasPerm -> viewModel.setPttTransmitting(active, hasPerm) },
                 onToggleVoice = { enabled -> viewModel.toggleVoiceSetting(enabled) },
                 onMissionVictory = { bonus, wave -> viewModel.onMissionVictory(bonus, wave) },
+                onWaveMatchWon = { bonus, wave -> viewModel.onWaveMatchVictory(bonus, wave) },
                 onSwitchWeapon = { wpnId -> viewModel.quickSwitchWeapon(wpnId) },
-                onOpenShop = { viewModel.openShopFromRoom() }
+                onOpenShop = { viewModel.openShopFromRoom() },
+                bgmMuted = bgmMuted,
+                onToggleBgm = onToggleBgm
             )
             SnackbarHost(
                 hostState = snackbarHostState,
@@ -338,8 +374,10 @@ fun BlockWatchRoot(
                         AppScreen.LOBBY -> LobbyScreen(
                             profileState = profileState,
                             roomsState = roomsState,
+                            selectedMatchMode = selectedMatchMode,
                             isBusy = isBusy,
-                            onStartShift = { title -> viewModel.startNewPatrolShift(title) },
+                            onSelectMatchMode = { mode -> viewModel.selectMatchMode(mode) },
+                            onStartShift = { title, mode -> viewModel.startNewPatrolShift(title, mode) },
                             onJoinByCode = { code -> viewModel.joinRoomByCode(code) },
                             onEnterRoom = { room -> viewModel.enterExistingRoom(room) },
                             onOpenShop = { viewModel.navigateTo(AppScreen.SHOP) },

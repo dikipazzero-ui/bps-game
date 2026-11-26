@@ -11,6 +11,7 @@ import com.example.model.CommsChannel
 import com.example.model.CommsMessage
 import com.example.model.EstateSector
 import com.example.model.EstateWorld
+import com.example.model.GameMatchMode
 import com.example.model.GateStatus
 import com.example.model.PatrolRoom
 import com.example.model.PingType
@@ -74,6 +75,9 @@ class BlockWatchViewModel(
 
     private val _isBusy = MutableStateFlow(false)
     val isBusy: StateFlow<Boolean> = _isBusy.asStateFlow()
+
+    private val _selectedMatchMode = MutableStateFlow(GameMatchMode.RANKED)
+    val selectedMatchMode: StateFlow<GameMatchMode> = _selectedMatchMode.asStateFlow()
 
     private val _pttActive = MutableStateFlow(false)
     val pttActive: StateFlow<Boolean> = _pttActive.asStateFlow()
@@ -213,11 +217,15 @@ class BlockWatchViewModel(
         _statusBanner.value = null
     }
 
-    fun startNewPatrolShift(shiftTitle: String) {
+    fun selectMatchMode(mode: GameMatchMode) {
+        _selectedMatchMode.value = mode
+    }
+
+    fun startNewPatrolShift(shiftTitle: String, matchMode: GameMatchMode = _selectedMatchMode.value) {
         val profile = (profileState.value as? UiState.Success)?.data ?: return
         viewModelScope.launch {
             _isBusy.value = true
-            repository.createPatrolRoom(shiftTitle, profile)
+            repository.createPatrolRoom(shiftTitle, profile, matchMode)
                 .onSuccess { roomId ->
                     openRoom(roomId, isHost = true)
                 }
@@ -348,6 +356,25 @@ class BlockWatchViewModel(
                 }
                 .onFailure {
                     _statusBanner.value = it.localizedMessage ?: "Gagal mencatat kemenangan misi"
+                }
+        }
+    }
+
+    fun onWaveMatchVictory(bonusPoints: Long, wave: Int) {
+        val roomId = _activeRoomId.value ?: return
+        val bundle = (roomBundleState.value as? UiState.Success)?.data ?: return
+        val room = bundle.room ?: return
+        val profile = (profileState.value as? UiState.Success)?.data ?: return
+        val mode = GameMatchMode.safeValueOf(room.matchMode)
+        viewModelScope.launch {
+            repository.recordMatchVictory(roomId, mode, profile, bonusPoints + wave * 25L)
+                .onSuccess { reward ->
+                    if (reward.matchMode == GameMatchMode.RANKED && reward.newTier.level > reward.previousTier.level) {
+                        _statusBanner.value = "NAIK LEVEL ${reward.newTier.level}: ${reward.newTier.title} (${reward.newStars}★)! Bingkai profil baru terbuka!"
+                    }
+                }
+                .onFailure {
+                    _statusBanner.value = it.localizedMessage ?: "Gagal mencatat hadiah mode ${mode.labelId}"
                 }
         }
     }

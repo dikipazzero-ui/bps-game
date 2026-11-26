@@ -76,6 +76,175 @@ enum class MissionOutcome {
     ACTIVE, VICTORY, WASTED, TIME_UP
 }
 
+enum class GameMatchMode(val labelId: String, val badgeLabel: String, val subtitle: String) {
+    CLASSIC(
+        labelId = "CLASSIC",
+        badgeLabel = "CLASSIC • POIN",
+        subtitle = "Patroli santai. Menang hanya mendapatkan Poin Patroli tanpa Bintang Rank."
+    ),
+    RANKED(
+        labelId = "RANK",
+        badgeLabel = "RANK • +1 ★",
+        subtitle = "Mode kompetitif! Menang dapat +1 Bintang untuk naik hingga 10 Tingkat Level & Bingkai Mewah."
+    );
+
+    companion object {
+        fun safeValueOf(raw: String): GameMatchMode =
+            entries.firstOrNull { it.name == raw } ?: RANKED
+    }
+}
+
+data class RankTier(
+    val level: Int,
+    val title: String,
+    val divisionTag: String,
+    val minStars: Int,
+    val nextLevelStars: Int?,
+    val framePrimary: Color,
+    val frameSecondary: Color,
+    val frameGlow: Color,
+    val gemColor: Color,
+    val frameStyleName: String
+)
+
+object RankCatalog {
+    val tiers: List<RankTier> = listOf(
+        RankTier(
+            level = 1,
+            title = "Taruna Jaga",
+            divisionTag = "WARRIOR",
+            minStars = 0,
+            nextLevelStars = 2,
+            framePrimary = Color(0xFF64748B),
+            frameSecondary = Color(0xFF94A3B8),
+            frameGlow = Color(0xFF475569),
+            gemColor = Color(0xFFCBD5E1),
+            frameStyleName = "Bingkai Baja Dasar"
+        ),
+        RankTier(
+            level = 2,
+            title = "Kopral Komplek",
+            divisionTag = "ELITE",
+            minStars = 2,
+            nextLevelStars = 4,
+            framePrimary = Color(0xFF94A3B8),
+            frameSecondary = Color(0xFFE2E8F0),
+            frameGlow = Color(0xFF60A5FA),
+            gemColor = Color(0xFF93C5FD),
+            frameStyleName = "Bingkai Perak Ganda"
+        ),
+        RankTier(
+            level = 3,
+            title = "Sersan Patroli",
+            divisionTag = "MASTER",
+            minStars = 4,
+            nextLevelStars = 7,
+            framePrimary = Color(0xFF2563EB),
+            frameSecondary = Color(0xFF60A5FA),
+            frameGlow = Color(0xFF3B82F6),
+            gemColor = Color(0xFF38BDF8),
+            frameStyleName = "Bingkai Kobalt Berlapis"
+        ),
+        RankTier(
+            level = 4,
+            title = "Inspektur Blok",
+            divisionTag = "GRANDMASTER",
+            minStars = 7,
+            nextLevelStars = 10,
+            framePrimary = Color(0xFF0284C7),
+            frameSecondary = Color(0xFF38BDF8),
+            frameGlow = Color(0xFF0EA5E9),
+            gemColor = Color(0xFF7DD3FC),
+            frameStyleName = "Bingkai Safir Bersayap"
+        ),
+        RankTier(
+            level = 5,
+            title = "Komandan Sektor",
+            divisionTag = "EPIC",
+            minStars = 10,
+            nextLevelStars = 14,
+            framePrimary = Color(0xFF0D9488),
+            frameSecondary = Color(0xFF2DD4BF),
+            frameGlow = Color(0xFF22D3EE),
+            gemColor = Color(0xFF67E8F9),
+            frameStyleName = "Bingkai Zamrud Neon"
+        ),
+        RankTier(
+            level = 6,
+            title = "Kapten Taktis",
+            divisionTag = "LEGEND",
+            minStars = 14,
+            nextLevelStars = 18,
+            framePrimary = Color(0xFF4F46E5),
+            frameSecondary = Color(0xFF818CF8),
+            frameGlow = Color(0xFF6366F1),
+            gemColor = Color(0xFFA5B4FC),
+            frameStyleName = "Bingkai Kerajaan Indigo"
+        ),
+        RankTier(
+            level = 7,
+            title = "Mayor Selaras",
+            divisionTag = "MYTHIC",
+            minStars = 18,
+            nextLevelStars = 23,
+            framePrimary = Color(0xFF7C3AED),
+            frameSecondary = Color(0xFF38BDF8),
+            frameGlow = Color(0xFFA855F7),
+            gemColor = Color(0xFFE879F9),
+            frameStyleName = "Bingkai Sayap Mythic"
+        ),
+        RankTier(
+            level = 8,
+            title = "Kolonel Kehormatan",
+            divisionTag = "MYTHIC HONOR",
+            minStars = 23,
+            nextLevelStars = 28,
+            framePrimary = Color(0xFF1D4ED8),
+            frameSecondary = Color(0xFF7DD3FC),
+            frameGlow = Color(0xFF38BDF8),
+            gemColor = Color(0xFFBAE6FD),
+            frameStyleName = "Bingkai Aura Kehormatan"
+        ),
+        RankTier(
+            level = 9,
+            title = "Jenderal Agung",
+            divisionTag = "MYTHICAL GLORY",
+            minStars = 28,
+            nextLevelStars = 35,
+            framePrimary = Color(0xFF2563EB),
+            frameSecondary = Color(0xFFFBBF24),
+            frameGlow = Color(0xFF60A5FA),
+            gemColor = Color(0xFFFDE047),
+            frameStyleName = "Bingkai Prisma Kejayaan"
+        ),
+        RankTier(
+            level = 10,
+            title = "Legenda Abadi BPS",
+            divisionTag = "IMMORTAL",
+            minStars = 35,
+            nextLevelStars = null,
+            framePrimary = Color(0xFF1E3A8A),
+            frameSecondary = Color(0xFF38BDF8),
+            frameGlow = Color(0xFFFBBF24),
+            gemColor = Color(0xFFFFFFFF),
+            frameStyleName = "Bingkai Mahkota Abadi"
+        )
+    )
+
+    fun tierForStars(stars: Long): RankTier {
+        val clamped = stars.coerceAtLeast(0L).toInt()
+        return tiers.lastOrNull { clamped >= it.minStars } ?: tiers.first()
+    }
+
+    fun progressInTier(stars: Long): Float {
+        val current = tierForStars(stars)
+        val next = current.nextLevelStars ?: return 1f
+        val span = (next - current.minStars).coerceAtLeast(1)
+        val earned = (stars.toInt() - current.minStars).coerceIn(0, span)
+        return earned.toFloat() / span.toFloat()
+    }
+}
+
 @Keep
 @IgnoreExtraProperties
 data class UserProfile(
@@ -84,6 +253,7 @@ data class UserProfile(
     val displayName: String = "Petugas Selaras",
     val points: Long = 100L,
     val apprehensions: Long = 0L,
+    val rankStars: Long = 0L,
     val equippedUniformId: String = "rookie_cadet",
     val unlockedUniformIds: List<String> = listOf("rookie_cadet"),
     val equippedWeaponId: String = "pistol_9mm",
@@ -103,6 +273,7 @@ data class PatrolRoom(
     val title: String = "Patroli Bumi Papan Selaras",
     val hostUid: String = "",
     val status: String = RoomStatus.ACTIVE.name,
+    val matchMode: String = GameMatchMode.RANKED.name,
     val memberUids: List<String> = emptyList(),
     val northGateStatus: String = GateStatus.OPEN.name,
     val southGateStatus: String = GateStatus.OPEN.name,
@@ -212,7 +383,8 @@ data class ThiefEntity(
 
 enum class VehicleType(val label: String, val speedMultiplier: Float, val armorBonus: Float) {
     CAR("Mobil Patroli", 2.40f, 0.35f),
-    MOTORCYCLE("Motor Patroli", 2.10f, 0.12f)
+    MOTORCYCLE("Motor Patroli", 2.10f, 0.12f),
+    HELICOPTER("Helikopter Patroli", 3.15f, 0.50f)
 }
 
 data class WorldVehicle(
@@ -322,10 +494,12 @@ object EstateWorld {
 
     val defaultVehicles: List<WorldVehicle> = listOf(
         WorldVehicle("car_masjid", VehicleType.CAR, 0.475f, 0.635f, 90f, Color(0xFF0F172A), Color(0xFF38BDF8)),
-        WorldVehicle("moto_masjid", VehicleType.MOTORCYCLE, 0.53f, 0.635f, 0f, Color(0xFF1E293B), Color(0xFFF59E0B)),
+        WorldVehicle("moto_masjid", VehicleType.MOTORCYCLE, 0.53f, 0.635f, 0f, Color(0xFF1E293B), Color(0xFF60A5FA)),
+        WorldVehicle("heli_masjid", VehicleType.HELICOPTER, 0.415f, 0.640f, 0f, Color(0xFF0F172A), Color(0xFF38BDF8)),
         WorldVehicle("moto_krisan", VehicleType.MOTORCYCLE, 0.335f, 0.295f, 180f, Color(0xFF0284C7), Color(0xFFE2E8F0)),
-        WorldVehicle("car_flamboyan", VehicleType.CAR, 0.66f, 0.705f, 270f, Color(0xFFE2E8F0), Color(0xFFEF4444)),
-        WorldVehicle("moto_akasia", VehicleType.MOTORCYCLE, 0.665f, 0.295f, 90f, Color(0xFF10B981), Color(0xFFFDE047))
+        WorldVehicle("car_flamboyan", VehicleType.CAR, 0.66f, 0.705f, 270f, Color(0xFFE2E8F0), Color(0xFF3B82F6)),
+        WorldVehicle("moto_akasia", VehicleType.MOTORCYCLE, 0.665f, 0.295f, 90f, Color(0xFF10B981), Color(0xFF38BDF8)),
+        WorldVehicle("heli_selatan", VehicleType.HELICOPTER, 0.585f, 0.890f, 0f, Color(0xFF1E293B), Color(0xFF22D3EE))
     )
 
     fun spawnThiefWave(wave: Int, playerX: Float, playerY: Float): List<ThiefEntity> {
@@ -621,7 +795,7 @@ object UniformCatalog {
 }
 
 enum class WeaponStyle {
-    PISTOL, GRENADE, AK47, BAZOOKA
+    PISTOL, SHOTGUN, SMG, GRENADE, AK47, SNIPER, BAZOOKA, MINIGUN
 }
 
 data class WeaponItem(
@@ -660,52 +834,116 @@ object WeaponCatalog {
             description = "Pistol jangkauan menengah dengan mobilitas tinggi untuk serangan dasar cepat."
         ),
         WeaponItem(
+            id = "shotgun_tactical",
+            name = "Shotgun Pompa 12G",
+            categoryTag = "Hantaman Dekat",
+            price = 180L,
+            primaryColor = Color(0xFF334155),
+            accentColor = Color(0xFF60A5FA),
+            style = WeaponStyle.SHOTGUN,
+            damage = 52,
+            rangeNorm = 0.27f,
+            aoeRadius = 0.08f,
+            cooldownMs = 680L,
+            stunSeconds = 2.4f,
+            bonusPoints = 10L,
+            description = "Senapan pompa berdaya hancur besar jarak dekat dengan efek hentak area."
+        ),
+        WeaponItem(
+            id = "smg_mp5",
+            name = "SMG MP5 Taktis",
+            categoryTag = "Tembakan Kilat",
+            price = 360L,
+            primaryColor = Color(0xFF1E293B),
+            accentColor = Color(0xFF22D3EE),
+            style = WeaponStyle.SMG,
+            damage = 28,
+            rangeNorm = 0.37f,
+            aoeRadius = 0f,
+            cooldownMs = 135L,
+            stunSeconds = 2.0f,
+            bonusPoints = 15L,
+            description = "Submachine gun berkecepatan tembak sangat tinggi untuk mengejar maling lincah."
+        ),
+        WeaponItem(
             id = "granat_frag",
             name = "Granat Ledak MK-II",
             categoryTag = "Ledakan Area",
-            price = 250L,
+            price = 550L,
             primaryColor = Color(0xFF15803D),
-            accentColor = Color(0xFFF59E0B),
+            accentColor = Color(0xFF38BDF8),
             style = WeaponStyle.GRENADE,
-            damage = 60,
-            rangeNorm = 0.36f,
-            aoeRadius = 0.14f,
-            cooldownMs = 1150L,
-            stunSeconds = 3.0f,
-            bonusPoints = 15L,
+            damage = 75,
+            rangeNorm = 0.38f,
+            aoeRadius = 0.15f,
+            cooldownMs = 1100L,
+            stunSeconds = 3.2f,
+            bonusPoints = 20L,
             description = "Lemparan granat berdaya ledak area untuk menghantam pencuri saat berlindung."
         ),
         WeaponItem(
             id = "ak47_assault",
             name = "AK-47 Otomatis",
-            categoryTag = "Rifle Cepat",
-            price = 650L,
-            primaryColor = Color(0xFF92400E),
-            accentColor = Color(0xFFFBBF24),
+            categoryTag = "Rifle Tempur",
+            price = 900L,
+            primaryColor = Color(0xFF7C2D12),
+            accentColor = Color(0xFF60A5FA),
             style = WeaponStyle.AK47,
-            damage = 22,
-            rangeNorm = 0.43f,
+            damage = 42,
+            rangeNorm = 0.45f,
             aoeRadius = 0f,
-            cooldownMs = 180L,
-            stunSeconds = 2.5f,
-            bonusPoints = 25L,
-            description = "Rifle otomatis AK-47 berdaya tembak kuat dan cepat untuk duel jarak jauh."
+            cooldownMs = 175L,
+            stunSeconds = 2.6f,
+            bonusPoints = 30L,
+            description = "Rifle otomatis AK-47 kaliber berat berdaya tembak kuat dan stabil jarak jauh."
+        ),
+        WeaponItem(
+            id = "sniper_awp",
+            name = "Sniper Taktis AWP",
+            categoryTag = "Bidik Jarak Jauh",
+            price = 1500L,
+            primaryColor = Color(0xFF0F766E),
+            accentColor = Color(0xFF38BDF8),
+            style = WeaponStyle.SNIPER,
+            damage = 120,
+            rangeNorm = 0.72f,
+            aoeRadius = 0f,
+            cooldownMs = 950L,
+            stunSeconds = 3.8f,
+            bonusPoints = 45L,
+            description = "Senapan runduk presisi tinggi yang mampu melumpuhkan target dari seberang blok maupun helikopter."
         ),
         WeaponItem(
             id = "bazoka_rpg",
             name = "Bazoka Peluncur Roket",
-            categoryTag = "Daya Ledak Maks",
-            price = 1400L,
+            categoryTag = "Ledakan Roket",
+            price = 2400L,
             primaryColor = Color(0xFF475569),
             accentColor = Color(0xFFEF4444),
             style = WeaponStyle.BAZOOKA,
-            damage = 95,
-            rangeNorm = 0.52f,
-            aoeRadius = 0.18f,
-            cooldownMs = 1600L,
+            damage = 155,
+            rangeNorm = 0.56f,
+            aoeRadius = 0.20f,
+            cooldownMs = 1500L,
             stunSeconds = 4.5f,
-            bonusPoints = 50L,
-            description = "Senjata peluncur roket berdaya ledak terbesar untuk meruntuhkan pertahanan pencuri!"
+            bonusPoints = 65L,
+            description = "Peluncur roket anti-armor berdaya ledak dahsyat untuk melumpuhkan kelompok pencuri!"
+        ),
+        WeaponItem(
+            id = "minigun_vulcan",
+            name = "Minigun Vulcan M134",
+            categoryTag = "Senjata Pamungkas",
+            price = 3800L,
+            primaryColor = Color(0xFF1D4ED8),
+            accentColor = Color(0xFF38BDF8),
+            style = WeaponStyle.MINIGUN,
+            damage = 62,
+            rangeNorm = 0.54f,
+            aoeRadius = 0.06f,
+            cooldownMs = 95L,
+            stunSeconds = 4.0f,
+            bonusPoints = 90L,
+            description = "Senapan mesin 6-laras berputar berkecepatan ekstrem dengan kerusakan brutal tertinggi!"
         )
     )
 
@@ -748,7 +986,7 @@ object AttributeCatalog {
             needLabel = "Perlengkapan Standar",
             price = 0L,
             primaryColor = Color(0xFF475569),
-            accentColor = Color(0xFFF59E0B),
+            accentColor = Color(0xFF38BDF8),
             style = AttributeStyle.BELT,
             speedMultiplier = 1.0f,
             visionBoost = 0.0f,
@@ -804,7 +1042,7 @@ object AttributeCatalog {
             needLabel = "Radar & Jangkauan",
             price = 1300L,
             primaryColor = Color(0xFF0891B2),
-            accentColor = Color(0xFFFDE047),
+            accentColor = Color(0xFF60A5FA),
             style = AttributeStyle.SCANNER_DRONE,
             speedMultiplier = 1.24f,
             visionBoost = 0.45f,

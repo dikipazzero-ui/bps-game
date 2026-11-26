@@ -8,11 +8,14 @@ import com.example.model.CommsChannel
 import com.example.model.CommsMessage
 import com.example.model.EstateSector
 import com.example.model.EstateWorld
+import com.example.model.GameMatchMode
 import com.example.model.GandiMood
 import com.example.model.GateStatus
 import com.example.model.PatrolRoom
 import com.example.model.PingType
 import com.example.model.PlayerRole
+import com.example.model.RankCatalog
+import com.example.model.RankTier
 import com.example.model.RoomPlayer
 import com.example.model.RoomStatus
 import com.example.model.TacticalPing
@@ -36,6 +39,15 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlin.random.Random
+
+data class MatchVictoryReward(
+    val pointsEarned: Long,
+    val starsEarned: Int,
+    val newStars: Long,
+    val previousTier: RankTier,
+    val newTier: RankTier,
+    val matchMode: GameMatchMode
+)
 
 class BlockWatchRepository(
     private val db: FirebaseFirestore,
@@ -182,16 +194,20 @@ class BlockWatchRepository(
             val snap = docRef.get().await()
             if (snap.exists()) {
                 val rawData = snap.data
-                if (rawData != null && (!rawData.containsKey("equippedWeaponId") || !rawData.containsKey("equippedAttributeId"))) {
-                    docRef.update(
-                        mapOf(
-                            "equippedWeaponId" to "pistol_9mm",
-                            "unlockedWeaponIds" to listOf("pistol_9mm"),
-                            "equippedAttributeId" to "utility_belt",
-                            "unlockedAttributeIds" to listOf("utility_belt"),
-                            "updatedAt" to FieldValue.serverTimestamp()
-                        )
-                    ).await()
+                if (rawData != null && (!rawData.containsKey("equippedWeaponId") || !rawData.containsKey("equippedAttributeId") || !rawData.containsKey("rankStars"))) {
+                    val migMap = mutableMapOf<String, Any>("updatedAt" to FieldValue.serverTimestamp())
+                    if (!rawData.containsKey("equippedWeaponId")) {
+                        migMap["equippedWeaponId"] = "pistol_9mm"
+                        migMap["unlockedWeaponIds"] = listOf("pistol_9mm")
+                    }
+                    if (!rawData.containsKey("equippedAttributeId")) {
+                        migMap["equippedAttributeId"] = "utility_belt"
+                        migMap["unlockedAttributeIds"] = listOf("utility_belt")
+                    }
+                    if (!rawData.containsKey("rankStars")) {
+                        migMap["rankStars"] = 0L
+                    }
+                    docRef.update(migMap).await()
                     val migrated = docRef.get().await()
                         .toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
                     if (migrated != null) return Result.success(migrated)
@@ -219,6 +235,7 @@ class BlockWatchRepository(
                 "displayName" to safeName,
                 "points" to 150L,
                 "apprehensions" to 0L,
+                "rankStars" to 0L,
                 "equippedUniformId" to "rookie_cadet",
                 "unlockedUniformIds" to listOf("rookie_cadet"),
                 "equippedWeaponId" to "pistol_9mm",
@@ -244,7 +261,8 @@ class BlockWatchRepository(
 
     suspend fun createPatrolRoom(
         titleInput: String,
-        profile: UserProfile
+        profile: UserProfile,
+        matchMode: GameMatchMode = GameMatchMode.RANKED
     ): Result<String> {
         val codeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val roomCode = buildString {
@@ -265,6 +283,7 @@ class BlockWatchRepository(
                 "title" to cleanTitle,
                 "hostUid" to uid,
                 "status" to RoomStatus.ACTIVE.name,
+                "matchMode" to matchMode.name,
                 "memberUids" to listOf(uid),
                 "northGateStatus" to GateStatus.OPEN.name,
                 "southGateStatus" to GateStatus.OPEN.name,
@@ -658,6 +677,63 @@ class BlockWatchRepository(
 
             postGandiDispatch(roomId, uid, gandi.line, sector.shortCode)
             Result.success(earned)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun recordMatchVictory(
+        roomId: String,
+        matchMode: GameMatchMode,
+        profile: UserProfile,
+        bonusPoints: Long
+    ): Result<MatchVictoryReward> {
+        val path = "users"
+        return try {
+            val uid = requireUserId()
+            val basePoints = if (matchMode == GameMatchMode.RANKED) 220L else 180L
+            val pointsEarned = (basePoints + bonusPoints).coerceIn(50L, 1200L)
+            val starsDelta = if (matchMode == GameMatchMode.RANKED) 1L else 0L
+            val prevTier = RankCatalog.tierForStars(profile.rankStars)
+            val newStars = (profile.rankStars + starsDelta).coerceAtMost(100000L)
+            val newTier = RankCatalog.tierForStars(newStars)
+
+            val userUpdates = mutableMapOf<String, Any>(
+                "points" to FieldValue.increment(pointsEarned),
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            if (starsDelta > 0L) {
+                userUpdates["rankStars"] = FieldValue.increment(starsDelta)
+            }
+            db.collection("users").document(uid).update(userUpdates).await()
+
+            db.collection("rooms").document(roomId).update(
+                mapOf(
+                    "scoreTotal" to FieldValue.increment(pointsEarned),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+
+            db.collection("rooms").document(roomId).collection("players").document(uid).update(
+                mapOf(
+                    "roomScore" to FieldValue.increment(pointsEarned),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+
+            Result.success(
+                MatchVictoryReward(
+                    pointsEarned = pointsEarned,
+                    starsEarned = starsDelta.toInt(),
+                    newStars = newStars,
+                    previousTier = prevTier,
+                    newTier = newTier,
+                    matchMode = matchMode
+                )
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

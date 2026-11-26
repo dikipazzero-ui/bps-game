@@ -42,6 +42,10 @@ service cloud.firestore {
       return s in ['ACTIVE', 'LOCKDOWN', 'ENDED'];
     }
 
+    function isValidMatchMode(m) {
+      return m in ['CLASSIC', 'RANKED'];
+    }
+
     function isValidGandiMood(m) {
       return m in ['CHATTY', 'ALERT', 'PANICKED', 'PROUD', 'SUSPICIOUS'];
     }
@@ -71,6 +75,7 @@ service cloud.firestore {
              data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40 &&
              data.points is int && data.points >= 0 && data.points <= 10000000 &&
              data.apprehensions is int && data.apprehensions >= 0 && data.apprehensions <= 1000000 &&
+             (!('rankStars' in data) || (data.rankStars is int && data.rankStars >= 0 && data.rankStars <= 100000)) &&
              data.equippedUniformId is string && data.equippedUniformId.size() >= 1 && data.equippedUniformId.size() <= 40 &&
              data.unlockedUniformIds is list && data.unlockedUniformIds.size() >= 1 && data.unlockedUniformIds.size() <= 20 &&
              data.unlockedUniformIds[0] is string &&
@@ -88,6 +93,7 @@ service cloud.firestore {
              data.title is string && data.title.size() >= 3 && data.title.size() <= 50 &&
              data.hostUid is string && data.hostUid.size() >= 1 && data.hostUid.size() <= 128 &&
              isValidRoomStatus(data.status) &&
+             (!('matchMode' in data) || isValidMatchMode(data.matchMode)) &&
              data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 12 &&
              data.memberUids[0] is string &&
              isValidGateStatus(data.northGateStatus) &&
@@ -164,7 +170,7 @@ service cloud.firestore {
                          'voiceEnabled', 'createdAt', 'updatedAt'
                        ]) &&
                        incoming().keys().hasOnly([
-                         'userId', 'displayName', 'points', 'apprehensions',
+                         'userId', 'displayName', 'points', 'apprehensions', 'rankStars',
                          'equippedUniformId', 'unlockedUniformIds',
                          'equippedWeaponId', 'unlockedWeaponIds',
                          'equippedAttributeId', 'unlockedAttributeIds',
@@ -179,7 +185,7 @@ service cloud.firestore {
                        incoming().createdAt == existing().createdAt &&
                        isValidUserProfile(incoming()) &&
                        incoming().diff(existing()).affectedKeys().hasOnly([
-                         'displayName', 'points', 'apprehensions',
+                         'displayName', 'points', 'apprehensions', 'rankStars',
                          'equippedUniformId', 'unlockedUniformIds',
                          'equippedWeaponId', 'unlockedWeaponIds',
                          'equippedAttributeId', 'unlockedAttributeIds',
@@ -207,7 +213,7 @@ service cloud.firestore {
                          'thiefSpotted', 'gandiLastLine', 'gandiMood', 'createdAt', 'updatedAt'
                        ]) &&
                        incoming().keys().hasOnly([
-                         'roomCode', 'title', 'hostUid', 'status', 'memberUids',
+                         'roomCode', 'title', 'hostUid', 'status', 'matchMode', 'memberUids',
                          'northGateStatus', 'southGateStatus', 'scoreTotal', 'apprehensionCount',
                          'activeThiefSectorId', 'activeThiefStreet', 'activeThiefX', 'activeThiefY',
                          'thiefSpotted', 'gandiLastLine', 'gandiMood', 'createdAt', 'updatedAt'

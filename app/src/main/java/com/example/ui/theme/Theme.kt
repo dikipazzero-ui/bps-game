@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 
 private val TacticalDarkColorScheme = darkColorScheme(
     primary = BeaconAmber,
-    onPrimary = ObsidianNight,
+    onPrimary = Color.White,
     primaryContainer = BeaconAmberContainer,
     onPrimaryContainer = BeaconAmberBright,
     secondary = RadarCyan,
@@ -38,8 +38,8 @@ private val TacticalDarkColorScheme = darkColorScheme(
 private val TacticalLightColorScheme = lightColorScheme(
     primary = DaylightAmber,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFFEF3C7),
-    onPrimaryContainer = Color(0xFF78350F),
+    primaryContainer = Color(0xFFDBEAFE),
+    onPrimaryContainer = Color(0xFF1E3A8A),
     secondary = DaylightCyan,
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFCFFAFE),

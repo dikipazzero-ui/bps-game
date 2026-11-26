@@ -161,7 +161,7 @@ fun EstateMapCanvas(
                 val py = h * ping.posY.toFloat()
                 val pingColor = when (PingType.safeValueOf(ping.pingType)) {
                     PingType.SUSPECT -> Color(0xFFEF4444)
-                    PingType.BACKUP -> Color(0xFFF59E0B)
+                    PingType.BACKUP -> Color(0xFF3B82F6)
                     PingType.BLOCK_GATE -> Color(0xFF06B6D4)
                     PingType.CLEAR -> Color(0xFF10B981)
                 }
@@ -235,7 +235,7 @@ fun EstateMapCanvas(
                 }
                 if (isMe) {
                     drawCircle(
-                        color = Color(0xFFFBBF24).copy(alpha = 0.30f),
+                        color = Color(0xFF38BDF8).copy(alpha = 0.40f),
                         radius = 22f,
                         center = Offset(gx, gy),
                         style = Stroke(width = 2.5f)
@@ -260,7 +260,7 @@ fun EstateMapCanvas(
                         fontFamily = SpaceGroteskFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
-                        color = if (isMe) Color(0xFFFDE047) else Color(0xFFE2E8F0)
+                        color = if (isMe) Color(0xFF60A5FA) else Color(0xFFE2E8F0)
                     )
                 )
                 drawText(
@@ -309,7 +309,7 @@ private fun DrawScope.drawParks(w: Float, h: Float, textMeasurer: TextMeasurer) 
         cornerRadius = CornerRadius(18f, 18f)
     )
     drawRoundRect(
-        color = Color(0xFFFDE047).copy(alpha = 0.65f),
+        color = Color(0xFF38BDF8).copy(alpha = 0.65f),
         topLeft = Offset(w * 0.44f, h * 0.44f),
         size = Size(w * 0.12f, h * 0.12f),
         cornerRadius = CornerRadius(24f, 24f),
@@ -317,7 +317,7 @@ private fun DrawScope.drawParks(w: Float, h: Float, textMeasurer: TextMeasurer) 
     )
     val label = textMeasurer.measure(
         "AREA MASJID",
-        TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color(0xFFFDE047))
+        TextStyle(fontFamily = SpaceGroteskFontFamily, fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color(0xFF60A5FA))
     )
     drawText(label, topLeft = Offset(w * 0.50f - label.size.width / 2f, h * 0.575f))
 }
@@ -334,7 +334,7 @@ private fun DrawScope.drawBlocks(w: Float, h: Float, textMeasurer: TextMeasurer)
         val topLeft = Offset(b.minX * w, b.minY * h)
         val bSize = Size((b.maxX - b.minX) * w, (b.maxY - b.minY) * h)
         drawRoundRect(
-            color = if (b.isPrison) Color(0xFF78350F) else b.roofColor,
+            color = if (b.isPrison) Color(0xFF1E3A8A) else b.roofColor,
             topLeft = topLeft,
             size = bSize,
             cornerRadius = CornerRadius(10f, 10f)
@@ -372,7 +372,7 @@ private fun DrawScope.drawGates(
 ) {
     fun gateColor(status: GateStatus): Color = when (status) {
         GateStatus.OPEN -> Color(0xFF10B981)
-        GateStatus.ALERT -> Color(0xFFF59E0B)
+        GateStatus.ALERT -> Color(0xFF3B82F6)
         GateStatus.LOCKED -> Color(0xFFEF4444)
     }
 
